@@ -1,12 +1,10 @@
 import * as vscode from 'vscode';
+import { Mode, ModeController } from './mode';
 
-type Mode = 'normal' | 'insert';
-
-let mode: Mode = 'normal';
+let modeController: ModeController;
 let modeItem: vscode.StatusBarItem;
 
-function setMode(next: Mode): void {
-  mode = next;
+function updateModeIndicator(mode: Mode): void {
   vscode.commands.executeCommand('setContext', 'vimLike.mode', mode);
   if (modeItem) {
     modeItem.text = mode === 'normal' ? '$(terminal) NORMAL' : '$(edit) INSERT';
@@ -33,16 +31,20 @@ async function editCurrentLine(edit: (builder: vscode.TextEditorEdit, line: vsco
 }
 
 export function activate(context: vscode.ExtensionContext): void {
+  modeController = new ModeController(
+    vscode.workspace.getConfiguration('vimLike').get('startInNormalMode', true) ? 'normal' : 'insert'
+  );
   modeItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   modeItem.command = 'vimLike.enterNormalMode';
   context.subscriptions.push(modeItem);
-  setMode(vscode.workspace.getConfiguration('vimLike').get('startInNormalMode', true) ? 'normal' : 'insert');
+  modeController.onDidChange(updateModeIndicator);
+  updateModeIndicator(modeController.mode);
 
   const register = (id: string, callback: (...args: any[]) => any) =>
     context.subscriptions.push(vscode.commands.registerCommand(id, callback));
 
-  register('vimLike.enterNormalMode', () => setMode('normal'));
-  register('vimLike.enterInsertMode', () => setMode('insert'));
+  register('vimLike.enterNormalMode', () => modeController.setMode('normal'));
+  register('vimLike.enterInsertMode', () => modeController.setMode('insert'));
   register('vimLike.deleteCharacter', async () => {
     const editor = activeEditor();
     if (!editor) return;
@@ -60,14 +62,14 @@ export function activate(context: vscode.ExtensionContext): void {
     if (!editor) return;
     const line = editor.document.lineAt(editor.selection.active.line);
     await editor.edit(builder => builder.insert(line.rangeIncludingLineBreak.end, '\n'));
-    setMode('insert');
+    modeController.setMode('insert');
   });
   register('vimLike.openLineAbove', async () => {
     const editor = activeEditor();
     if (!editor) return;
     const line = editor.document.lineAt(editor.selection.active.line);
     await editor.edit(builder => builder.insert(line.range.start, '\n'));
-    setMode('insert');
+    modeController.setMode('insert');
   });
 
   const builtIn = (id: string, command: string) => register(id, () => vscode.commands.executeCommand(command));
@@ -81,7 +83,7 @@ export function activate(context: vscode.ExtensionContext): void {
         !vscode.workspace.getConfiguration('vimLike').get('showModeInStatusBar', true)) {
       modeItem.hide();
     } else {
-      setMode(mode);
+      updateModeIndicator(modeController.mode);
     }
   }));
 }
