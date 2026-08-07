@@ -1,0 +1,67 @@
+{
+  "name": "vscode-vim-like",
+  "displayName": "Vim Like Navigation",
+  "description": "Vim-like modes, UI toggles, and keyboard-only editor navigation.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "license": "MIT",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "vimLike.enterNormalMode", "title": "Vim Like: Enter Normal Mode" },
+      { "command": "vimLike.enterInsertMode", "title": "Vim Like: Enter Insert Mode" },
+      { "command": "vimLike.deleteCharacter", "title": "Vim Like: Delete Character" },
+      { "command": "vimLike.deleteLine", "title": "Vim Like: Delete Line" },
+      { "command": "vimLike.openLineBelow", "title": "Vim Like: Open Line Below" },
+      { "command": "vimLike.openLineAbove", "title": "Vim Like: Open Line Above" },
+      { "command": "vimLike.toggleSidebar", "title": "Vim Like: Toggle Sidebar" },
+      { "command": "vimLike.togglePanel", "title": "Vim Like: Toggle Panel" },
+      { "command": "vimLike.toggleAuxiliaryBar", "title": "Vim Like: Toggle Auxiliary Bar" },
+      { "command": "vimLike.toggleActivityBar", "title": "Vim Like: Toggle Activity Bar" }
+    ],
+    "configuration": {
+      "title": "Vim Like",
+      "properties": {
+        "vimLike.startInNormalMode": {
+          "type": "boolean", "default": true,
+          "description": "Start each editor in Normal mode."
+        },
+        "vimLike.showModeInStatusBar": {
+          "type": "boolean", "default": true,
+          "description": "Show the current mode in the status bar."
+        }
+      }
+    },
+    "keybindings": [
+      { "command": "vimLike.enterInsertMode", "key": "i", "when": "vimLike.mode == normal && editorTextFocus" },
+      { "command": "vimLike.enterInsertMode", "key": "a", "when": "vimLike.mode == normal && editorTextFocus" },
+      { "command": "vimLike.enterNormalMode", "key": "escape", "when": "vimLike.mode == insert" },
+      { "command": "cursorLeft", "key": "h", "when": "vimLike.mode == normal && editorTextFocus" },
+      { "command": "cursorDown", "key": "j", "when": "vimLike.mode == normal && editorTextFocus" },
+      { "command": "cursorUp", "key": "k", "when": "vimLike.mode == normal && editorTextFocus" },
+      { "command": "cursorRight", "key": "l", "when": "vimLike.mode == normal && editorTextFocus" },
+      { "command": "cursorHome", "key": "0", "when": "vimLike.mode == normal && editorTextFocus" },
+      { "command": "cursorEnd", "key": "$", "when": "vimLike.mode == normal && editorTextFocus" },
+      { "command": "vimLike.deleteCharacter", "key": "x", "when": "vimLike.mode == normal && editorTextFocus" },
+      { "command": "vimLike.deleteLine", "key": "d d", "when": "vimLike.mode == normal && editorTextFocus" },
+      { "command": "vimLike.openLineBelow", "key": "o", "when": "vimLike.mode == normal && editorTextFocus" },
+      { "command": "vimLike.openLineAbove", "key": "shift+o", "when": "vimLike.mode == normal && editorTextFocus" },
+      { "command": "workbench.action.navigateLeft", "key": "ctrl+w h", "when": "vimLike.mode == normal" },
+      { "command": "workbench.action.navigateDown", "key": "ctrl+w j", "when": "vimLike.mode == normal" },
+      { "command": "workbench.action.navigateUp", "key": "ctrl+w k", "when": "vimLike.mode == normal" },
+      { "command": "workbench.action.navigateRight", "key": "ctrl+w l", "when": "vimLike.mode == normal" },
+      { "command": "vimLike.toggleSidebar", "key": "ctrl+b", "when": "vimLike.mode == normal" },
+      { "command": "vimLike.togglePanel", "key": "ctrl+j", "when": "vimLike.mode == normal" },
+      { "command": "vimLike.toggleAuxiliaryBar", "key": "ctrl+alt+b", "when": "vimLike.mode == normal" },
+      { "command": "vimLike.toggleActivityBar", "key": "ctrl+alt+a", "when": "vimLike.mode == normal" }
+    ]
+  },
+  "scripts": { "compile": "tsc -p ./", "watch": "tsc -watch -p ./" },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  }
+}
