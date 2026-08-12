@@ -1,0 +1,109 @@
+{
+  "name": "vscode-vim-like",
+  "displayName": "Vim Like",
+  "description": "Vim-like modal editing with operators, motions, counts and registers.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "license": "MIT",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Keymaps", "Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/src/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": { "supported": true },
+    "virtualWorkspaces": true
+  },
+  "contributes": {
+    "commands": [
+      { "command": "vimLike.escape", "title": "Vim Like: Escape (Enter Normal Mode)" },
+      { "command": "vimLike.enterNormalMode", "title": "Vim Like: Enter Normal Mode" },
+      { "command": "vimLike.enterInsertMode", "title": "Vim Like: Enter Insert Mode" },
+      { "command": "vimLike.redo", "title": "Vim Like: Redo" },
+      { "command": "vimLike.toggleEnabled", "title": "Vim Like: Toggle Vim Mode" }
+    ],
+    "configuration": {
+      "title": "Vim Like",
+      "properties": {
+        "vimLike.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Vim-like modal editing."
+        },
+        "vimLike.startInNormalMode": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enter Normal mode when an editor becomes active."
+        },
+        "vimLike.showModeInStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the current mode in the status bar."
+        }
+      }
+    },
+    "keybindings": [
+      {
+        "command": "vimLike.escape",
+        "key": "escape",
+        "when": "vimLike.active && editorTextFocus && !suggestWidgetVisible && !parameterHintsVisible && !renameInputVisible && !inSnippetMode && !findWidgetVisible && !editorHasMultipleSelections"
+      },
+      {
+        "command": "vimLike.escape",
+        "key": "ctrl+[",
+        "when": "vimLike.active && editorTextFocus && !suggestWidgetVisible && !parameterHintsVisible && !renameInputVisible && !inSnippetMode"
+      },
+      {
+        "command": "vimLike.redo",
+        "key": "ctrl+r",
+        "when": "vimLike.active && vimLike.mode != insert && editorTextFocus"
+      },
+      {
+        "command": "workbench.action.navigateLeft",
+        "key": "ctrl+w h",
+        "when": "vimLike.active && vimLike.mode != insert && editorTextFocus"
+      },
+      {
+        "command": "workbench.action.navigateDown",
+        "key": "ctrl+w j",
+        "when": "vimLike.active && vimLike.mode != insert && editorTextFocus"
+      },
+      {
+        "command": "workbench.action.navigateUp",
+        "key": "ctrl+w k",
+        "when": "vimLike.active && vimLike.mode != insert && editorTextFocus"
+      },
+      {
+        "command": "workbench.action.navigateRight",
+        "key": "ctrl+w l",
+        "when": "vimLike.active && vimLike.mode != insert && editorTextFocus"
+      },
+      {
+        "command": "workbench.action.splitEditorDown",
+        "key": "ctrl+w s",
+        "when": "vimLike.active && vimLike.mode != insert && editorTextFocus"
+      },
+      {
+        "command": "workbench.action.splitEditor",
+        "key": "ctrl+w v",
+        "when": "vimLike.active && vimLike.mode != insert && editorTextFocus"
+      },
+      {
+        "command": "workbench.action.closeActiveEditor",
+        "key": "ctrl+w c",
+        "when": "vimLike.active && vimLike.mode != insert && editorTextFocus"
+      }
+    ]
+  },
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('out', { recursive: true, force: true })\"",
+    "compile": "npm run clean && tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "node --test \"out/test/**/*.test.js\""
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  }
+}
