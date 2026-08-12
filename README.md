@@ -1,12 +1,14 @@
 # Vim Like
 
+[![CI](https://github.com/onzuka24/vscode-extension-v/actions/workflows/ci.yml/badge.svg)](https://github.com/onzuka24/vscode-extension-v/actions/workflows/ci.yml)
+
 VS Code 上で Vim ライクなモーダル編集を提供する拡張機能です。オペレータとモーションの
 組み合わせ、カウント接頭辞、レジスタ、Visual モード、テキストオブジェクトに対応しています。
 
 ## 必要環境
 
 - VS Code 1.85 以降
-- ビルドに Node.js 20 以降と npm
+- ビルドとテストに Node.js 22.6 以降と npm
 
 ## 導入と実行
 
@@ -22,7 +24,8 @@ VS Code でこのディレクトリを開き、`F5`（または「実行とデ�
 `.vscode/launch.json` の設定により自動で走ります。編集しながら試す場合は、別のターミナルで
 `npm run watch` を実行しておくとインクリメンタルにビルドされます。
 
-テストは `npm test` で実行します。
+検査は `npm run lint`、`npm run typecheck`、`npm test` で実行します。同じ3つが GitHub Actions の
+CI でも Node 22 と 24 の両方で走ります。
 
 現時点では Marketplace への公開や VSIX の配布は行っていません。
 

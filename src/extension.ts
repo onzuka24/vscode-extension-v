@@ -121,8 +121,9 @@ function enqueue(task: () => Promise<void>): Promise<void> {
 // ------------------------------------------------------------------ commands
 
 function registerCommands(context: vscode.ExtensionContext): void {
-  const register = (id: string, callback: (...args: unknown[]) => unknown) =>
+  const register = (id: string, callback: (...args: unknown[]) => unknown): void => {
     context.subscriptions.push(vscode.commands.registerCommand(id, callback));
+  };
 
   register('vimLike.escape', () =>
     withActiveEditor(editor => {

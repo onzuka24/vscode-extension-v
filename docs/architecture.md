@@ -266,3 +266,17 @@ assert.equal(run('foo(bar)baz', 'ci(X<Esc>', { cursor: pos(0, 5) }).text, 'foo(X
 | 全キーバインドに `editorTextFocus` があるか | ターミナルや検索欄でキーを奪う事故 |
 | Escape がウィジェットを除外しているか | サジェストを Escape で閉じられなくなる事故 |
 | `src/core/` が `vscode` を import していないか | レイヤ違反によるテスト不能化 |
+
+## CI
+
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) が push と Pull Request で
+`npm run lint` → `npm run typecheck` → `npm test` を Node 22 と 24 で実行します。
+
+ESLint は型情報を使う設定（`recommendedTypeChecked`）にしています。目的はスタイルの統一よりも、
+`editor.edit()` や `setContext` の `await` 忘れを `no-floating-promises` で捕まえることです。
+この種の抜けは型検査を通ってしまう一方で、編集が反映される前にカーソルを置いてしまうという
+実際の不具合になります。
+
+なお `node:test` の `test()` は呼び出し側が await しない前提の関数なので、そこだけ
+`allowForKnownSafeCalls` で安全と宣言しています。テストディレクトリ全体でルールを切ると、
+テストヘルパの本当の await 忘れを見逃すためです。

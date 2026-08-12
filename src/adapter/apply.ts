@@ -48,7 +48,7 @@ export async function applyActions(
       const vsPosition = toVsPosition(position);
       editor.selection = new vscode.Selection(vsPosition, vsPosition);
     } else if (action.type === 'setSelection') {
-      editor.selection = buildSelection(buffer, action.anchor, action.active, action.linewise, mode);
+      editor.selection = buildSelection(buffer, action.anchor, action.active, action.linewise);
     }
   }
 
@@ -71,8 +71,7 @@ function buildSelection(
   buffer: DocumentBuffer,
   anchor: Position,
   active: Position,
-  linewise: boolean,
-  mode: Mode
+  linewise: boolean
 ): vscode.Selection {
   if (linewise) {
     const first = Math.min(anchor.line, active.line);
@@ -83,12 +82,12 @@ function buildSelection(
   }
 
   const forwards = comparePositions(anchor, active) <= 0;
-  const from = forwards ? anchor : extendByOne(buffer, anchor, mode);
-  const to = forwards ? extendByOne(buffer, active, mode) : active;
+  const from = forwards ? anchor : extendByOne(buffer, anchor);
+  const to = forwards ? extendByOne(buffer, active) : active;
   return new vscode.Selection(toVsPosition(from), toVsPosition(to));
 }
 
-function extendByOne(buffer: DocumentBuffer, position: Position, mode: Mode): Position {
+function extendByOne(buffer: DocumentBuffer, position: Position): Position {
   const limit = buffer.lineAt(position.line).length;
   return pos(position.line, Math.min(position.character + 1, limit));
 }

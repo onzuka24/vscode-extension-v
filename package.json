@@ -5,21 +5,46 @@
   "version": "0.1.0",
   "publisher": "local",
   "license": "MIT",
-  "engines": { "vscode": "^1.85.0" },
-  "categories": ["Keymaps", "Other"],
-  "activationEvents": ["onStartupFinished"],
+  "engines": {
+    "vscode": "^1.85.0",
+    "node": ">=22.6"
+  },
+  "categories": [
+    "Keymaps",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/src/extension.js",
   "capabilities": {
-    "untrustedWorkspaces": { "supported": true },
+    "untrustedWorkspaces": {
+      "supported": true
+    },
     "virtualWorkspaces": true
   },
   "contributes": {
     "commands": [
-      { "command": "vimLike.escape", "title": "Vim Like: Escape (Enter Normal Mode)" },
-      { "command": "vimLike.enterNormalMode", "title": "Vim Like: Enter Normal Mode" },
-      { "command": "vimLike.enterInsertMode", "title": "Vim Like: Enter Insert Mode" },
-      { "command": "vimLike.redo", "title": "Vim Like: Redo" },
-      { "command": "vimLike.toggleEnabled", "title": "Vim Like: Toggle Vim Mode" }
+      {
+        "command": "vimLike.escape",
+        "title": "Vim Like: Escape (Enter Normal Mode)"
+      },
+      {
+        "command": "vimLike.enterNormalMode",
+        "title": "Vim Like: Enter Normal Mode"
+      },
+      {
+        "command": "vimLike.enterInsertMode",
+        "title": "Vim Like: Enter Insert Mode"
+      },
+      {
+        "command": "vimLike.redo",
+        "title": "Vim Like: Redo"
+      },
+      {
+        "command": "vimLike.toggleEnabled",
+        "title": "Vim Like: Toggle Vim Mode"
+      }
     ],
     "configuration": {
       "title": "Vim Like",
@@ -98,12 +123,18 @@
     "clean": "node -e \"require('node:fs').rmSync('out', { recursive: true, force: true })\"",
     "compile": "npm run clean && tsc -p ./",
     "watch": "tsc -watch -p ./",
+    "typecheck": "tsc -p ./ --noEmit",
+    "lint": "eslint .",
     "pretest": "npm run compile",
     "test": "node --test \"out/test/**/*.test.js\""
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.85.0",
-    "typescript": "^5.3.0"
+    "eslint": "^10.8.1",
+    "globals": "^17.10.0",
+    "typescript": "^5.3.0",
+    "typescript-eslint": "^8.67.0"
   }
 }
