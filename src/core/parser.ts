@@ -27,11 +27,21 @@ export interface Command {
 }
 
 export type ParseResult =
-  | { readonly status: 'pending' }
+  | {
+      readonly status: 'pending';
+      /**
+       * True when the next keystroke is consumed as a raw character rather than
+       * as a command: the target of `f`/`t`, the replacement of `r`, the name of
+       * a register. Vim does not apply key remapping to those, and neither do we —
+       * otherwise `fJ` would find whatever `J` is mapped to instead of the letter J.
+       */
+      readonly awaitingLiteral: boolean;
+    }
   | { readonly status: 'invalid' }
   | { readonly status: 'complete'; readonly command: Command };
 
-const PENDING: ParseResult = { status: 'pending' };
+const PENDING: ParseResult = { status: 'pending', awaitingLiteral: false };
+const PENDING_LITERAL: ParseResult = { status: 'pending', awaitingLiteral: true };
 const INVALID: ParseResult = { status: 'invalid' };
 
 /** Normal-mode commands that are not operators and take no motion. */
@@ -105,7 +115,7 @@ export function parse(keys: string, mode: Mode): ParseResult {
   if (scanner.peek() === '"') {
     scanner.next();
     register = scanner.next();
-    if (register === undefined) return PENDING;
+    if (register === undefined) return PENDING_LITERAL;
   }
 
   const trailingCount = scanner.readCount();
@@ -126,7 +136,7 @@ function parseNormal(scanner: Scanner, base: Command): ParseResult {
 
   if (ACTIONS_WITH_ARGUMENT.has(key)) {
     const argument = scanner.next();
-    if (argument === undefined) return PENDING;
+    if (argument === undefined) return PENDING_LITERAL;
     if (!scanner.atEnd()) return INVALID;
     return complete({ ...base, action: key, actionArgument: argument });
   }
@@ -210,7 +220,7 @@ function parseMotion(scanner: Scanner, base: Command): ParseResult {
       let argument: string | undefined;
       if (motion.needsArgument) {
         argument = scanner.next();
-        if (argument === undefined) return PENDING;
+        if (argument === undefined) return PENDING_LITERAL;
       }
       if (!scanner.atEnd()) return INVALID;
       return complete({ ...base, motion: keys, motionArgument: argument });
@@ -222,4 +232,10 @@ function parseMotion(scanner: Scanner, base: Command): ParseResult {
 
 function complete(command: Command): ParseResult {
   return { status: 'complete', command };
+}
+
+/** True when the next keystroke is taken literally, so remapping must not apply. */
+export function awaitsLiteralKey(keys: string, mode: Mode): boolean {
+  const result = parse(keys, mode);
+  return result.status === 'pending' && result.awaitingLiteral;
 }

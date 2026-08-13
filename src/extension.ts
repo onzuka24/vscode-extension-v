@@ -3,6 +3,7 @@ import { applyActions, readCursor } from './adapter/apply';
 import { DocumentBuffer } from './adapter/buffer';
 import { ModeStatusBar } from './adapter/statusBar';
 import { EngineResult, VimEngine, VimState, createState, withExternalCursor } from './core/engine';
+import { RemapRule, RemapTable } from './core/remap';
 import { Mode } from './core/types';
 
 const engine = new VimEngine();
@@ -29,6 +30,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   enabled = configuration().get('enabled', true);
   state = createState(configuration().get('startInNormalMode', true) ? 'normal' : 'insert');
+  loadRemaps();
 
   registerTypeInterceptor(context);
   registerCommands(context);
@@ -85,19 +87,37 @@ function registerTypeInterceptor(context: vscode.ExtensionContext): void {
 
 async function handleKey(editor: vscode.TextEditor, key: string): Promise<void> {
   try {
-    const buffer = new DocumentBuffer(editor.document);
-    const result = engine.handleKey(state, key, buffer, readCursor(editor, state.mode));
-
-    if (!result.handled) {
-      await vscode.commands.executeCommand('default:type', { text: key });
-      return;
-    }
-    await commit(editor, result);
+    await feed(editor, key, false);
   } catch (error) {
     // One bad command must not wedge the session with a half-parsed prefix still
     // pending, which would make every following key look wrong too.
     state = { ...state, pendingKeys: '' };
     console.error(`Vim Like failed to handle the key ${JSON.stringify(key)}`, error);
+  }
+}
+
+/**
+ * Feeds one key, then any keys a remap expanded to. Each replayed key gets a
+ * freshly read buffer, because an expansion such as `ddp` must see the document
+ * as it stands after the delete. Replays go through `handleLiteralKey`, which is
+ * what makes remapping non-recursive.
+ */
+async function feed(editor: vscode.TextEditor, key: string, literal: boolean): Promise<void> {
+  const buffer = new DocumentBuffer(editor.document);
+  const cursor = readCursor(editor, state.mode);
+  const result = literal
+    ? engine.handleLiteralKey(state, key, buffer, cursor)
+    : engine.handleKey(state, key, buffer, cursor);
+
+  if (!result.handled) {
+    await vscode.commands.executeCommand('default:type', { text: key });
+    return;
+  }
+
+  await commit(editor, result);
+
+  for (const replayed of result.replay ?? []) {
+    await feed(editor, replayed, true);
   }
 }
 
@@ -174,6 +194,7 @@ function registerListeners(context: vscode.ExtensionContext): void {
     vscode.workspace.onDidChangeConfiguration(event => {
       if (!event.affectsConfiguration('vimLike')) return;
       enabled = configuration().get('enabled', true);
+      loadRemaps();
       void refresh();
     })
   );
@@ -183,6 +204,27 @@ function registerListeners(context: vscode.ExtensionContext): void {
 
 function configuration(): vscode.WorkspaceConfiguration {
   return vscode.workspace.getConfiguration('vimLike');
+}
+
+/**
+ * Reads the user's remap rules. Rules that cannot be understood are reported
+ * rather than dropped in silence — a binding that quietly never fires is
+ * indistinguishable from a broken feature.
+ */
+function loadRemaps(): void {
+  const settings = configuration();
+  const { table, problems } = RemapTable.from({
+    normal: settings.get<RemapRule[]>('normalModeKeyBindings', []),
+    visual: settings.get<RemapRule[]>('visualModeKeyBindings', [])
+  });
+
+  engine.setRemaps(table);
+
+  if (problems.length > 0) {
+    void vscode.window.showWarningMessage(
+      `Vim Like: 設定のキー割り当てを一部読み込めませんでした。 ${problems.join(' / ')}`
+    );
+  }
 }
 
 function withActiveEditor<T>(action: (editor: vscode.TextEditor) => T): T | undefined {

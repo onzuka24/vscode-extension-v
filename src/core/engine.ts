@@ -3,8 +3,10 @@ import { TextBuffer, clampLine, lastLine, lineLength, linewiseRange, linewiseTex
 import { clampCursor, firstNonBlank, indentOf, maxColumn } from './cursor';
 import { Motion, MotionContext, lookupMotion } from './motions';
 import { OperatorName, Target, applyOperator, paste, resolveMotionTarget } from './operators';
-import { Command, parse } from './parser';
+import { SPECIAL_KEYS, isSpecialKey } from './keys';
+import { Command, awaitsLiteralKey, parse } from './parser';
 import { RegisterStore } from './registers';
+import { RemapTable } from './remap';
 import { resolveTextObject } from './textobjects';
 import { Mode, Position, Range, RegisterContent, comparePositions, pos } from './types';
 
@@ -12,6 +14,8 @@ export interface VimState {
   readonly mode: Mode;
   /** Keys typed so far that do not yet form a complete command, e.g. `d` or `2f`. */
   readonly pendingKeys: string;
+  /** Keys held while a longer remap rule might still match, e.g. `<leader>w`. */
+  readonly remapPending: readonly string[];
   /** Column `j` and `k` aim for; preserved across short lines as Vim does. */
   readonly desiredColumn: number;
   readonly visualAnchor: Position | null;
@@ -27,10 +31,20 @@ export interface EngineResult {
    * of shortcuts over an editable buffer.
    */
   readonly handled: boolean;
+  /**
+   * Keys a remap expanded to, which the caller must feed back one at a time
+   * through `handleLiteralKey`, re-reading the buffer between each.
+   *
+   * The engine cannot run them itself: an expansion such as `ddp` needs the
+   * document as it stands *after* the delete, and the core has no way to apply
+   * an edit. Feeding them back also makes the non-recursion of `nnoremap` fall
+   * out naturally, since `handleLiteralKey` never consults the remap table.
+   */
+  readonly replay?: readonly string[];
 }
 
 export function createState(mode: Mode = 'normal', cursor: Position = pos(0, 0)): VimState {
-  return { mode, pendingKeys: '', desiredColumn: cursor.character, visualAnchor: null };
+  return { mode, pendingKeys: '', remapPending: [], desiredColumn: cursor.character, visualAnchor: null };
 }
 
 /**
@@ -39,7 +53,7 @@ export function createState(mode: Mode = 'normal', cursor: Position = pos(0, 0))
  * aim for would still reflect the last Vim motion.
  */
 export function withExternalCursor(state: VimState, cursor: Position): VimState {
-  return { ...state, pendingKeys: '', desiredColumn: cursor.character };
+  return { ...state, pendingKeys: '', remapPending: [], desiredColumn: cursor.character };
 }
 
 /** Normal-mode keys that are just shorthand for an operator, e.g. `D` for `d$`. */
@@ -52,8 +66,77 @@ const OPERATOR_SHORTHAND: Readonly<Record<string, Partial<Command>>> = {
 
 export class VimEngine {
   private readonly registers = new RegisterStore();
+  private remaps: RemapTable = RemapTable.empty();
 
+  public setRemaps(table: RemapTable): void {
+    this.remaps = table;
+  }
+
+  /**
+   * Entry point for a key the user actually pressed. Applies remapping, then
+   * hands what remains to `handleLiteralKey`.
+   */
   public handleKey(state: VimState, key: string, buffer: TextBuffer, cursor: Position): EngineResult {
+    // Escape and the Ctrl combinations are not remappable, and they must work in
+    // Insert mode too, so they bypass everything below.
+    if (isSpecialKey(key)) return this.handleLiteralKey(state, key, buffer, cursor);
+
+    if (state.mode === 'insert') {
+      return { state, actions: [], handled: false };
+    }
+
+    // A pending `f`, `t`, `r` or `"` swallows the next key as a raw character.
+    // Vim does not remap those, so neither do we: `fJ` must find the letter J
+    // even when `J` is bound to something else.
+    if (this.remaps.isEmpty || awaitsLiteralKey(state.pendingKeys, state.mode)) {
+      return this.handleLiteralKey(state, key, buffer, cursor);
+    }
+
+    const buffered = [...state.remapPending, key];
+    const match = this.remaps.match(buffered, state.mode);
+
+    if (match.kind === 'prefix') {
+      return { state: { ...state, remapPending: buffered }, actions: [], handled: true };
+    }
+
+    const cleared: VimState = { ...state, remapPending: [] };
+
+    if (match.kind === 'exact') {
+      const { rule } = match;
+      if (rule.commands) {
+        return {
+          state: cleared,
+          actions: rule.commands.map(command => ({ type: 'executeCommand', command }) as const),
+          handled: true
+        };
+      }
+      return { state: cleared, actions: [], handled: true, replay: rule.after ?? [] };
+    }
+
+    // Nothing matched. Keys held back while a longer rule was still possible are
+    // played through as if they had just been typed.
+    if (buffered.length > 1) {
+      return { state: cleared, actions: [], handled: true, replay: buffered };
+    }
+    return this.handleLiteralKey(cleared, key, buffer, cursor);
+  }
+
+  /**
+   * A key that has already passed through remapping, or that must bypass it.
+   * Callers replay a remap expansion through here, which is what stops an
+   * expansion from being remapped again.
+   */
+  public handleLiteralKey(state: VimState, key: string, buffer: TextBuffer, cursor: Position): EngineResult {
+    if (key === SPECIAL_KEYS.escape) return this.escape(state, buffer, cursor);
+    if (key === SPECIAL_KEYS.redo) {
+      return {
+        state: { ...state, pendingKeys: '', remapPending: [] },
+        actions: [{ type: 'executeCommand', command: 'redo' }],
+        handled: true
+      };
+    }
+    if (isSpecialKey(key)) return this.unchanged(state);
+
     if (state.mode === 'insert') {
       return { state, actions: [], handled: false };
     }
@@ -77,7 +160,7 @@ export class VimEngine {
     const target = state.mode === 'insert' ? pos(cursor.line, Math.max(0, cursor.character - 1)) : cursor;
     const position = clampCursor(buffer, target, 'normal');
     return {
-      state: { mode: 'normal', pendingKeys: '', desiredColumn: position.character, visualAnchor: null },
+      state: { mode: 'normal', pendingKeys: '', remapPending: [], desiredColumn: position.character, visualAnchor: null },
       actions: [
         { type: 'setCursor', position, toFirstNonBlank: false },
         { type: 'setMode', mode: 'normal' },
@@ -174,6 +257,7 @@ export class VimEngine {
       state: {
         mode: outcome.mode,
         pendingKeys: '',
+        remapPending: [],
         desiredColumn: outcome.cursor.character,
         visualAnchor: null
       },
@@ -305,7 +389,7 @@ export class VimEngine {
 
   private enterInsert(state: VimState, position: Position): EngineResult {
     return {
-      state: { mode: 'insert', pendingKeys: '', desiredColumn: position.character, visualAnchor: null },
+      state: { mode: 'insert', pendingKeys: '', remapPending: [], desiredColumn: position.character, visualAnchor: null },
       actions: [
         { type: 'setCursor', position, toFirstNonBlank: false },
         { type: 'setMode', mode: 'insert' },
@@ -328,7 +412,7 @@ export class VimEngine {
     if (where === 'below') {
       const at = pos(cursor.line, lineLength(buffer, cursor.line));
       return {
-        state: { mode: 'insert', pendingKeys: '', desiredColumn: indent.length, visualAnchor: null },
+        state: { mode: 'insert', pendingKeys: '', remapPending: [], desiredColumn: indent.length, visualAnchor: null },
         actions: [
           { type: 'edit', range: { start: at, end: at }, text: buffer.eol + indent },
           { type: 'setCursor', position: pos(cursor.line + 1, indent.length), toFirstNonBlank: false },
@@ -341,7 +425,7 @@ export class VimEngine {
 
     const at = pos(cursor.line, 0);
     return {
-      state: { mode: 'insert', pendingKeys: '', desiredColumn: indent.length, visualAnchor: null },
+      state: { mode: 'insert', pendingKeys: '', remapPending: [], desiredColumn: indent.length, visualAnchor: null },
       actions: [
         { type: 'edit', range: { start: at, end: at }, text: indent + buffer.eol },
         { type: 'setCursor', position: pos(cursor.line, indent.length), toFirstNonBlank: false },
@@ -394,7 +478,7 @@ export class VimEngine {
     });
 
     return {
-      state: { mode: 'insert', pendingKeys: '', desiredColumn: cursor.character, visualAnchor: null },
+      state: { mode: 'insert', pendingKeys: '', remapPending: [], desiredColumn: cursor.character, visualAnchor: null },
       actions: [
         { type: 'edit', range, text: '' },
         { type: 'setCursor', position: cursor, toFirstNonBlank: false },
@@ -450,7 +534,7 @@ export class VimEngine {
     const text = content.text.split(/\r\n|\n/).join(buffer.eol);
 
     return {
-      state: { mode: 'normal', pendingKeys: '', desiredColumn: range.start.character, visualAnchor: null },
+      state: { mode: 'normal', pendingKeys: '', remapPending: [], desiredColumn: range.start.character, visualAnchor: null },
       actions: [
         { type: 'edit', range, text },
         { type: 'setCursor', position: range.start, toFirstNonBlank: false },
@@ -567,7 +651,7 @@ export class VimEngine {
   }
 
   private unchanged(state: VimState): EngineResult {
-    return { state: { ...state, pendingKeys: '' }, actions: [], handled: true };
+    return { state: { ...state, pendingKeys: '', remapPending: [] }, actions: [], handled: true };
   }
 }
 

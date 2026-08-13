@@ -2,6 +2,7 @@ import { Action } from '../src/core/actions';
 import { LinesBuffer } from '../src/core/buffer';
 import { clampCursor, firstNonBlank } from '../src/core/cursor';
 import { VimEngine, VimState, createState } from '../src/core/engine';
+import { RemapConfiguration, RemapTable } from '../src/core/remap';
 import { Mode, Position, Range, pos } from '../src/core/types';
 
 /**
@@ -15,14 +16,17 @@ export interface Session {
   readonly text: string;
   readonly cursor: Position;
   readonly mode: Mode;
-  /** Column of the cursor rendered as `line:character`, handy in assertions. */
+  /** Cursor rendered as `line:character`, handy in assertions. */
   readonly at: string;
+  /** VS Code commands the engine asked for, in order. */
+  readonly commands: readonly string[];
 }
 
 export interface RunOptions {
   readonly cursor?: Position;
   readonly eol?: string;
   readonly mode?: Mode;
+  readonly remaps?: RemapConfiguration;
 }
 
 interface Editor {
@@ -31,42 +35,62 @@ interface Editor {
   cursor: Position;
   anchor: Position | null;
   state: VimState;
+  commands: string[];
 }
 
 export function run(initial: string, keys: string, options: RunOptions = {}): Session {
   const engine = new VimEngine();
+  if (options.remaps) {
+    const { table, problems } = RemapTable.from(options.remaps);
+    if (problems.length > 0) throw new Error(`invalid remaps in test: ${problems.join(' / ')}`);
+    engine.setRemaps(table);
+  }
+
   const cursor = options.cursor ?? pos(0, 0);
   const editor: Editor = {
     text: initial,
     eol: options.eol ?? '\n',
     cursor,
     anchor: null,
-    state: createState(options.mode ?? 'normal', cursor)
+    state: createState(options.mode ?? 'normal', cursor),
+    commands: []
   };
 
   for (const key of tokenize(keys)) {
-    const buffer = new LinesBuffer(editor.text, editor.eol);
-
-    if (key === '<Esc>') {
-      apply(editor, engine.escape(editor.state, buffer, editor.cursor));
-      continue;
-    }
-
-    const result = engine.handleKey(editor.state, key, buffer, editor.cursor);
-    if (result.handled) {
-      apply(editor, result);
-      continue;
-    }
-    // Insert mode: the adapter would hand this to VS Code's own `type`.
-    typeLiterally(editor, key);
+    feed(engine, editor, key, false);
   }
 
   return {
     text: editor.text,
     cursor: editor.cursor,
     mode: editor.state.mode,
-    at: `${editor.cursor.line}:${editor.cursor.character}`
+    at: `${editor.cursor.line}:${editor.cursor.character}`,
+    commands: editor.commands
   };
+}
+
+/**
+ * Feeds one key, then any keys a remap expanded to. The expansion is replayed
+ * through `handleLiteralKey` with the buffer re-read each time, exactly as the
+ * VS Code adapter does — `ddp` must see the document as it stands after the
+ * delete, and going through the literal path is what keeps remaps non-recursive.
+ */
+function feed(engine: VimEngine, editor: Editor, key: string, literal: boolean): void {
+  const buffer = new LinesBuffer(editor.text, editor.eol);
+  const result = literal
+    ? engine.handleLiteralKey(editor.state, key, buffer, editor.cursor)
+    : engine.handleKey(editor.state, key, buffer, editor.cursor);
+
+  if (result.handled) {
+    apply(editor, result);
+  } else {
+    // Insert mode: the adapter would hand this to VS Code's own `type`.
+    typeLiterally(editor, key);
+  }
+
+  for (const replayed of result.replay ?? []) {
+    feed(engine, editor, replayed, true);
+  }
 }
 
 /** `<Esc>` is the only named key the harness needs; everything else is one character. */
@@ -89,6 +113,7 @@ function tokenize(keys: string): string[] {
 function apply(editor: Editor, result: { state: VimState; actions: readonly Action[] }): void {
   for (const action of result.actions) {
     if (action.type === 'edit') replaceRange(editor, action.range, action.text);
+    else if (action.type === 'executeCommand') editor.commands.push(action.command);
   }
 
   editor.state = result.state;

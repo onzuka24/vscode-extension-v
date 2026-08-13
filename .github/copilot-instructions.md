@@ -40,6 +40,7 @@ assert.equal(run('one\ntwo', 'dd', { cursor: pos(1, 0) }).at, '0:0');
 | モーションを足す | `src/core/motions.ts` の `MOTIONS` に1エントリ |
 | テキストオブジェクトを足す | `src/core/textobjects.ts` の `resolveTextObject` |
 | 単独コマンドを足す | `src/core/parser.ts` の `NORMAL_ACTIONS` と `src/core/engine.ts` の `runAction` |
+| 特殊キー（`<C-x>` 等）を足す | `src/core/keys.ts` の `SPECIAL_KEYS` と `engine.handleLiteralKey` |
 
 モーションは自分が `exclusive` / `inclusive` / `linewise` のどれであるかを申告します。
 これを正しく書けば `d` `c` `y` すべてから正しく使えるので、**オペレータ側に分岐を足さないでください**。
@@ -64,6 +65,9 @@ ge: {
 - **`registerCommand('type', ...)` の委譲条件を緩めない。** ウィンドウ全体で1つしかない
   ハンドラなので、判断を誤ると VS Code 全体で文字が打てなくなります。Insert モード中と
   複数文字のテキスト（IME の変換結果）は必ず `default:type` へ渡します。
+- **リマップの展開は `handleLiteralKey` に流す。** `EngineResult.replay` を呼び出し側が
+  1キーずつ流し直す設計で、この経路がリマップ層を通らないことが `nnoremap` の非再帰性を
+  担保しています。`handleKey` に流し直すと無限ループになります。
 
 ## 書き方の約束
 
