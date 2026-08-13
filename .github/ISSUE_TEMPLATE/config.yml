@@ -1,0 +1,10 @@
+# 定型に当てはまらない作業メモや設計の相談も書けるよう、空のイシューは残しておく。
+blank_issues_enabled: true
+
+contact_links:
+  - name: 設計資料を読む
+    url: https://github.com/onzuka24/vscode-extension-v/tree/main/docs
+    about: 構造・動作機序・作り直しの経緯。実装に手を入れる前にこちらをどうぞ。
+  - name: 対応済みのキー操作を確認する
+    url: https://github.com/onzuka24/vscode-extension-v#操作
+    about: そのコマンドが既に実装されているかは README の「操作」で確認できます。

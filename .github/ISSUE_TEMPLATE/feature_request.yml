@@ -1,0 +1,68 @@
+name: 機能追加の要望
+description: 未対応の Vim コマンドや操作への対応
+title: '[Feature] '
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        モーションやテキストオブジェクトの追加は、多くの場合 `src/core/` のテーブルに
+        1 行足すだけで済みます。どの Vim コマンドかが特定できていれば作業は短いので、
+        できるだけ本家の挙動に紐づけて書いてください。
+
+  - type: input
+    id: command
+    attributes:
+      label: 対応してほしい Vim のコマンド
+      placeholder: 'ge, gU, i}, :s/foo/bar/g など'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 種類
+      description: 分かる範囲で。迷ったら「分からない」で構いません。
+      options:
+        - モーション（カーソルを動かす）
+        - オペレータ（範囲に作用する）
+        - テキストオブジェクト（i / a で始まる）
+        - 単独コマンド（それ自体で完結する）
+        - Ex コマンド（: で始まる）
+        - 検索（/ ? n N）
+        - その他・分からない
+    validations:
+      required: true
+
+  - type: textarea
+    id: behaviour
+    attributes:
+      label: 期待する挙動
+      description: |
+        バグ報告と同じ形で、具体例があると助かります。
+        オペレータと組み合わせたときの挙動（exclusive / inclusive / 行単位）が分かれば特に有用です。
+      render: text
+      placeholder: |
+        バッファ:   hello world
+        カーソル:   0:6
+        キー列:     ge
+        期待:       カーソルが 0:4（直前の単語の最後の文字）へ移動する
+    validations:
+      required: true
+
+  - type: input
+    id: help
+    attributes:
+      label: Vim のヘルプ項目
+      description: 分かれば。`:help` で引ける見出しがあると仕様の確認が確実になります。
+      placeholder: ':help ge'
+    validations:
+      required: false
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: 現状の代替手段
+      description: 今はどうやって済ませているか。優先度の判断材料になります。
+    validations:
+      required: false

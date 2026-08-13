@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 同じブランチへ続けて push したときは、古い実行を打ち切る。
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, typecheck and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # Node のバージョンは mise.toml で固定している。ここでバージョンを
+      # 書かないことで、手元と CI の版がずれようがない状態にしている。
+      - uses: jdx/mise-action@v2
+        with:
+          cache: true
+
+      - name: Show versions
+        run: node --version && npm --version
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
+
+      # package-lock.json との不一致もここで落ちる。
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # コンパイルは pretest が走らせる。テストには
+      # キーバインドの妥当性やレイヤ違反を見る構造テストも含まれる。
+      - name: Test
+        run: npm test

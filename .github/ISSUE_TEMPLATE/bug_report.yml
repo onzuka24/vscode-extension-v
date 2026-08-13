@@ -1,0 +1,104 @@
+name: バグ報告
+description: 操作が Vim と違う挙動をする、エラーが出るなど
+title: '[Bug] '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        この拡張機能のふるまいは `run(初期テキスト, キー列)` という形のテストで再現できます。
+        下の項目が埋まっていれば、報告をそのまま失敗するテストに変換して修正に取りかかれます。
+
+        ```ts
+        assert.equal(run('hello world', 'dw', { cursor: pos(0, 0) }).text, 'world');
+        ```
+
+  - type: input
+    id: keys
+    attributes:
+      label: キー列
+      description: Normal モードから打った順に。`<Esc>` のような特殊キーは山括弧で書いてください。
+      placeholder: 3dw
+    validations:
+      required: true
+
+  - type: textarea
+    id: before
+    attributes:
+      label: 操作前のバッファ
+      description: 再現に必要な最小限の行だけで構いません。空白やインデントはそのまま貼ってください。
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: cursor
+    attributes:
+      label: 操作前のカーソル位置
+      description: 「行:桁」で、どちらも 0 起点。左上なら `0:0` です。
+      placeholder: '0:0'
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待した結果
+      description: 本家の Vim ではこうなる、という結果。カーソル位置も分かれば書いてください。
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の結果
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: eol
+    attributes:
+      label: 改行コード
+      description: VS Code の右下のステータスバーに表示されています。
+      options:
+        - LF
+        - CRLF
+        - 分からない
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: 開始時のモード
+      options:
+        - Normal
+        - Insert
+        - Visual
+        - Visual Line
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 環境
+      description: VS Code のバージョン（ヘルプ → バージョン情報）と OS。日本語入力を使っていた場合はその旨も。
+      placeholder: |
+        VS Code: 1.132.0
+        OS: macOS 15.6
+        IME: 使用していた / 使用していない
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 確認
+      options:
+        - label: 他の Vim 系拡張機能を無効にした状態でも再現する
+          required: false
+        - label: README の「制限」に挙がっている未対応機能ではないことを確認した
+          required: false
