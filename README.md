@@ -10,11 +10,15 @@ VS Code 上で Vim ライクなモーダル編集を提供する拡張機能で�
 - VS Code 1.85 以降
 - ビルドとテストに Node.js 22.6 以降と npm
 
+開発に使う Node のバージョンは [mise.toml](mise.toml) で固定しています。
+[mise](https://mise.jdx.dev/) を使っている場合は `mise install` で同じ版が入ります。
+
 ## 導入と実行
 
 ```sh
 git clone <repository-url>
 cd vscode-extension-v
+mise install   # mise を使わない場合は不要
 npm install
 npm run compile
 ```
@@ -24,8 +28,8 @@ VS Code でこのディレクトリを開き、`F5`（または「実行とデ�
 `.vscode/launch.json` の設定により自動で走ります。編集しながら試す場合は、別のターミナルで
 `npm run watch` を実行しておくとインクリメンタルにビルドされます。
 
-検査は `npm run lint`、`npm run typecheck`、`npm test` で実行します。同じ3つが GitHub Actions の
-CI でも Node 22 と 24 の両方で走ります。
+検査は `npm run lint`、`npm run typecheck`、`npm test` で実行します。GitHub Actions の CI でも
+同じ3つが、mise.toml で固定したものと同じ Node で走ります。
 
 現時点では Marketplace への公開や VSIX の配布は行っていません。
 
@@ -97,3 +101,5 @@ Normal モードと Visual モードでは、割り当てのないキーはバ�
 - [経緯](docs/history.md) — 最初の実装で何が問題になり、なぜ設計から作り直したか
 - [構造と動作機序](docs/architecture.md) — フォルダ構成、レイヤの依存、キー1打が届くまでの流れ、
   パーサの状態機械、`type` 乗っ取りの判断、テストの構成
+
+手を入れる場合は [CONTRIBUTING.md](CONTRIBUTING.md) をご覧ください。

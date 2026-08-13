@@ -270,7 +270,12 @@ assert.equal(run('foo(bar)baz', 'ci(X<Esc>', { cursor: pos(0, 5) }).text, 'foo(X
 ## CI
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) が push と Pull Request で
-`npm run lint` → `npm run typecheck` → `npm test` を Node 22 と 24 で実行します。
+`npm run lint` → `npm run typecheck` → `npm test` を実行します。
+
+Node のバージョンは [`mise.toml`](../mise.toml) だけに書いてあり、CI もそれを読みます
+（`jdx/mise-action`）。ワークフロー側にバージョンを書かないことで、手元と CI の版が
+ずれようがない状態にしています。この拡張機能が実際に動くのは VS Code に同梱された Node なので、
+複数バージョンで並行して試すより、開発ツールチェーンの版を1つに固定するほうが実利があります。
 
 ESLint は型情報を使う設定（`recommendedTypeChecked`）にしています。目的はスタイルの統一よりも、
 `editor.edit()` や `setContext` の `await` 忘れを `no-floating-promises` で捕まえることです。

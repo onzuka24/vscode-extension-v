@@ -16,22 +16,27 @@ concurrency:
 
 jobs:
   check:
-    name: Node ${{ matrix.node }}
+    name: Lint, typecheck and test
     runs-on: ubuntu-latest
-
-    strategy:
-      # 片方の Node で失敗しても、もう片方の結果は見たい。
-      fail-fast: false
-      matrix:
-        node: ['22', '24']
 
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v5
+      # Node のバージョンは mise.toml で固定している。ここでバージョンを
+      # 書かないことで、手元と CI の版がずれようがない状態にしている。
+      - uses: jdx/mise-action@v2
         with:
-          node-version: ${{ matrix.node }}
-          cache: npm
+          cache: true
+
+      - name: Show versions
+        run: node --version && npm --version
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
 
       # package-lock.json との不一致もここで落ちる。
       - name: Install
