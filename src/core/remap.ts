@@ -1,0 +1,138 @@
+import { normalizeKey } from './keys';
+import { Mode } from './types';
+
+/**
+ * User-defined key remapping, the mechanism behind settings such as
+ * `nnoremap J 10j`. Rules replace a key sequence with another sequence of keys,
+ * or invoke VS Code commands directly.
+ *
+ * Expansions are never themselves remapped, matching Vim's `nnoremap` rather
+ * than `nmap`; without that, `nnoremap j gj` would loop forever.
+ */
+export interface RemapRule {
+  readonly before: readonly string[];
+  readonly after?: readonly string[];
+  readonly commands?: readonly string[];
+}
+
+/** Rules are shared between Visual and Visual Line, as `vnoremap` is in Vim. */
+export type RemapScope = 'normal' | 'visual';
+
+export interface RemapConfiguration {
+  readonly normal?: readonly RemapRule[];
+  readonly visual?: readonly RemapRule[];
+}
+
+export type RemapMatch =
+  | { readonly kind: 'none' }
+  /** A longer rule starts with these keys, so more input is needed. */
+  | { readonly kind: 'prefix' }
+  | { readonly kind: 'exact'; readonly rule: RemapRule };
+
+const NO_MATCH: RemapMatch = { kind: 'none' };
+const PREFIX: RemapMatch = { kind: 'prefix' };
+
+export class RemapTable {
+  private constructor(private readonly rules: Readonly<Record<RemapScope, readonly RemapRule[]>>) {}
+
+  public static empty(): RemapTable {
+    return new RemapTable({ normal: [], visual: [] });
+  }
+
+  /**
+   * Validates and normalises configured rules. Invalid rules are dropped and
+   * reported rather than ignored, because a silently discarded binding looks
+   * exactly like a broken feature to whoever wrote it.
+   */
+  public static from(configuration: RemapConfiguration): { table: RemapTable; problems: string[] } {
+    const problems: string[] = [];
+    const normal = compile(configuration.normal ?? [], 'normalModeKeyBindings', problems);
+    const visual = compile(configuration.visual ?? [], 'visualModeKeyBindings', problems);
+    return { table: new RemapTable({ normal, visual }), problems };
+  }
+
+  public get isEmpty(): boolean {
+    return this.rules.normal.length === 0 && this.rules.visual.length === 0;
+  }
+
+  /**
+   * `prefix` wins over `exact` when both are possible: with `<leader>w` and
+   * `<leader>wh` both bound, the shorter one can never fire. Vim resolves this
+   * with a timeout; we deliberately have none, so that a keystroke is never
+   * acted upon merely because the user paused.
+   */
+  public match(keys: readonly string[], mode: Mode): RemapMatch {
+    const scope = scopeOf(mode);
+    if (!scope) return NO_MATCH;
+
+    let exact: RemapRule | undefined;
+    let prefixed = false;
+
+    for (const rule of this.rules[scope]) {
+      if (rule.before.length > keys.length) {
+        if (startsWith(rule.before, keys)) prefixed = true;
+      } else if (rule.before.length === keys.length && startsWith(rule.before, keys)) {
+        exact ??= rule;
+      }
+    }
+
+    if (prefixed) return PREFIX;
+    return exact ? { kind: 'exact', rule: exact } : NO_MATCH;
+  }
+}
+
+function scopeOf(mode: Mode): RemapScope | undefined {
+  if (mode === 'normal') return 'normal';
+  if (mode === 'visual' || mode === 'visual-line') return 'visual';
+  return undefined; // Insert mode is not remapped.
+}
+
+function startsWith(sequence: readonly string[], prefix: readonly string[]): boolean {
+  return prefix.every((key, index) => sequence[index] === key);
+}
+
+function compile(rules: readonly RemapRule[], setting: string, problems: string[]): RemapRule[] {
+  const compiled: RemapRule[] = [];
+
+  rules.forEach((rule, index) => {
+    const where = `vimLike.${setting}[${index}]`;
+
+    const before = normalizeAll(rule.before, `${where}.before`, problems);
+    if (!before) return;
+    if (before.length === 0) {
+      problems.push(`${where}.before は空にできません。`);
+      return;
+    }
+
+    const rawAfter = rule.after ?? [];
+    const commands = rule.commands ?? [];
+    if (rawAfter.length > 0 === commands.length > 0) {
+      problems.push(`${where} には after か commands のどちらか一方を指定してください。`);
+      return;
+    }
+
+    if (commands.length > 0) {
+      compiled.push({ before, commands: [...commands] });
+      return;
+    }
+
+    const after = normalizeAll(rawAfter, `${where}.after`, problems);
+    if (!after) return;
+    compiled.push({ before, after });
+  });
+
+  return compiled;
+}
+
+function normalizeAll(keys: readonly string[], where: string, problems: string[]): string[] | null {
+  const normalized: string[] = [];
+  for (const key of keys) {
+    const value = normalizeKey(key);
+    if (value === null) {
+      problems.push(`${where} の "${key}" は解釈できないキーです。`);
+      return null;
+    }
+    normalized.push(value);
+  }
+  return normalized;
+}
