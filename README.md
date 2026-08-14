@@ -86,6 +86,7 @@ Normal モードと Visual モードでは、割り当てのないキーはバ�
 - `vimLike.enabled`: Vim モードの有効・無効（既定値: `true`）。ステータスバーの表示をクリックしても切り替わります。
 - `vimLike.startInNormalMode`: エディターを切り替えたときに Normal モードへ戻すか（既定値: `true`）
 - `vimLike.showModeInStatusBar`: ステータスバーに現在のモードを表示するか（既定値: `true`）
+- `vimLike.leader`: キー割り当ての `<leader>` が指すキー（既定値: スペース）
 
 ### キーの割り当てを変える
 
@@ -99,18 +100,25 @@ Normal モードと Visual モードでは、割り当てのないキーはバ�
   { "before": ["K"], "after": ["1", "0", "k"] },
   { "before": ["L"], "after": ["$"] },
   { "before": ["U"], "after": ["<C-r>"] },
-  { "before": ["g", "n"], "commands": ["workbench.view.explorer"] }
+
+  { "before": ["<leader>", "n"], "commands": ["workbench.view.explorer"] },
+  { "before": ["<leader>", "h"], "commands": ["workbench.action.navigateLeft"] },
+  { "before": ["<leader>", "w", "h"], "commands": ["workbench.action.decreaseViewWidth"] }
 ]
 ```
 
 - `before` と `after` は 1 要素が 1 キーです。`10j` は `["1", "0", "j"]` と書きます。
 - `after` の代わりに `commands` を書くと、VS Code のコマンドを直接呼べます。
-- `<Esc>` と `<C-r>` が特殊キーとして使えます。
+- `<Esc>` `<C-r>` `<Space>` `<leader>` が特殊キーとして使えます。
+  `<leader>` が何を指すかは `vimLike.leader` で変えられます（既定値はスペース）。
 - 置き換えた結果はさらに置き換えられません（`nnoremap` と同じく非再帰です）。
 - `f` `t` `r` の引数と、`"` に続くレジスタ名は置き換えの対象外です。
   `J` を割り当てていても `fJ` は文字 `J` を探します。
 - 複数キーの `before` は、より長い規則が一致しうるあいだ次のキーを待ちます。
   `["g", "w"]` と `["g", "w", "h"]` を両方定義すると、短いほうは発火しません。
+  待機中はステータスバーに打鍵済みのキーが出ます（スペースは `␣` と表示されます）。
+- Vim の `timeoutlen` にあたる打ち切りはありません。待っているあいだは表示で分かるので、
+  手が止まっただけで打鍵が実行されるより確実だと考えています。
 
 ## 制限
 

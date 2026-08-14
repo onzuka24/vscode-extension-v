@@ -2,7 +2,8 @@ import * as vscode from 'vscode';
 import { applyActions, readCursor } from './adapter/apply';
 import { DocumentBuffer } from './adapter/buffer';
 import { ModeStatusBar } from './adapter/statusBar';
-import { EngineResult, VimEngine, VimState, createState, withExternalCursor } from './core/engine';
+import { EngineResult, VimEngine, VimState, createState, describePending, withExternalCursor } from './core/engine';
+import { DEFAULT_LEADER } from './core/keys';
 import { RemapRule, RemapTable } from './core/remap';
 import { Mode } from './core/types';
 
@@ -10,6 +11,7 @@ const engine = new VimEngine();
 let state: VimState = createState('normal');
 let statusBar: ModeStatusBar;
 let enabled = true;
+let leader: string = DEFAULT_LEADER;
 
 /**
  * The selection we last placed ourselves. VS Code delivers selection-change
@@ -215,10 +217,12 @@ function loadRemaps(): void {
   const settings = configuration();
   const { table, problems } = RemapTable.from({
     normal: settings.get<RemapRule[]>('normalModeKeyBindings', []),
-    visual: settings.get<RemapRule[]>('visualModeKeyBindings', [])
+    visual: settings.get<RemapRule[]>('visualModeKeyBindings', []),
+    leader: settings.get<string>('leader', DEFAULT_LEADER)
   });
 
   engine.setRemaps(table);
+  leader = table.leader;
 
   if (problems.length > 0) {
     void vscode.window.showWarningMessage(
@@ -254,7 +258,8 @@ async function refresh(): Promise<void> {
 
   statusBar.update(state.mode, {
     visible: configuration().get('showModeInStatusBar', true),
-    enabled
+    enabled,
+    pending: describePending(state, leader)
   });
 
   const editor = vscode.window.activeTextEditor;

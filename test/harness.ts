@@ -1,7 +1,8 @@
 import { Action } from '../src/core/actions';
 import { LinesBuffer } from '../src/core/buffer';
 import { clampCursor, firstNonBlank } from '../src/core/cursor';
-import { VimEngine, VimState, createState } from '../src/core/engine';
+import { VimEngine, VimState, createState, describePending } from '../src/core/engine';
+import { DEFAULT_LEADER } from '../src/core/keys';
 import { RemapConfiguration, RemapTable } from '../src/core/remap';
 import { Mode, Position, Range, pos } from '../src/core/types';
 
@@ -20,6 +21,8 @@ export interface Session {
   readonly at: string;
   /** VS Code commands the engine asked for, in order. */
   readonly commands: readonly string[];
+  /** Half-typed sequence still being held, as the status bar would render it. */
+  readonly pending: string;
 }
 
 export interface RunOptions {
@@ -40,10 +43,12 @@ interface Editor {
 
 export function run(initial: string, keys: string, options: RunOptions = {}): Session {
   const engine = new VimEngine();
+  let leader = DEFAULT_LEADER;
   if (options.remaps) {
     const { table, problems } = RemapTable.from(options.remaps);
     if (problems.length > 0) throw new Error(`invalid remaps in test: ${problems.join(' / ')}`);
     engine.setRemaps(table);
+    leader = table.leader;
   }
 
   const cursor = options.cursor ?? pos(0, 0);
@@ -65,7 +70,8 @@ export function run(initial: string, keys: string, options: RunOptions = {}): Se
     cursor: editor.cursor,
     mode: editor.state.mode,
     at: `${editor.cursor.line}:${editor.cursor.character}`,
-    commands: editor.commands
+    commands: editor.commands,
+    pending: describePending(editor.state, leader)
   };
 }
 

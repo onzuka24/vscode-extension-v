@@ -8,6 +8,13 @@ const LABELS: Readonly<Record<Mode, string>> = {
   'visual-line': '$(selection) V-LINE'
 };
 
+export interface StatusOptions {
+  readonly visible: boolean;
+  readonly enabled: boolean;
+  /** Half-typed command or remap sequence, shown so the user knows we are waiting. */
+  readonly pending: string;
+}
+
 export class ModeStatusBar {
   private readonly item: vscode.StatusBarItem;
 
@@ -18,8 +25,9 @@ export class ModeStatusBar {
     this.item.command = 'vimLike.toggleEnabled';
   }
 
-  public update(mode: Mode, options: { visible: boolean; enabled: boolean }): void {
-    this.item.text = options.enabled ? LABELS[mode] : '$(circle-slash) VIM OFF';
+  public update(mode: Mode, options: StatusOptions): void {
+    const label = options.enabled ? LABELS[mode] : '$(circle-slash) VIM OFF';
+    this.item.text = options.enabled && options.pending !== '' ? `${label}  ${options.pending}` : label;
     this.item.backgroundColor =
       options.enabled && mode === 'normal' ? new vscode.ThemeColor('statusBarItem.warningBackground') : undefined;
 

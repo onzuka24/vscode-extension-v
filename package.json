@@ -64,6 +64,11 @@
           "default": true,
           "description": "Show the current mode in the status bar."
         },
+        "vimLike.leader": {
+          "type": "string",
+          "default": " ",
+          "markdownDescription": "キー割り当ての `<leader>` が指すキーです。1文字か `<Space>` を指定します (`mapleader` 相当、既定値はスペース)。"
+        },
         "vimLike.normalModeKeyBindings": {
           "type": "array",
           "default": [],
