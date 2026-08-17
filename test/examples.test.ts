@@ -59,7 +59,14 @@ test('テンプレートの leader マッピングが発火する', () => {
   assert.deepEqual(run('abc', ' wh', { remaps }).commands, ['workbench.action.decreaseViewWidth']);
   assert.deepEqual(run('abc', ' ww', { remaps }).commands, ['workbench.action.evenEditorWidths']);
   assert.deepEqual(run('abc', ' /', { remaps }).commands, ['editor.action.commentLine']);
-  assert.deepEqual(run('abc', ' m', { remaps }).commands, ['claude-vscode.focus']);
+  assert.deepEqual(run('abc', ' n', { remaps }).commands, [
+    'workbench.view.explorer',
+    'workbench.files.action.focusFilesExplorer'
+  ]);
+  assert.deepEqual(run('abc', ' m', { remaps }).commands, [
+    'claude-vscode.sidebar.open',
+    'claude-vscode.focus'
+  ]);
 });
 
 test('テンプレートの Visual モード側も効く', () => {
