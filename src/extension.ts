@@ -2,7 +2,8 @@ import * as vscode from 'vscode';
 import { applyActions, readCursor } from './adapter/apply';
 import { DocumentBuffer } from './adapter/buffer';
 import { ModeStatusBar } from './adapter/statusBar';
-import { EngineResult, VimEngine, VimState, createState, withExternalCursor } from './core/engine';
+import { EngineResult, VimEngine, VimState, createState, describePending, withExternalCursor } from './core/engine';
+import { DEFAULT_LEADER } from './core/keys';
 import { RemapRule, RemapTable } from './core/remap';
 import { Mode } from './core/types';
 
@@ -10,6 +11,14 @@ const engine = new VimEngine();
 let state: VimState = createState('normal');
 let statusBar: ModeStatusBar;
 let enabled = true;
+let leader: string = DEFAULT_LEADER;
+
+/**
+ * Whether we actually own the `type` command. Without it there is no modal
+ * editing at all, so the extension reports itself inactive however the `enabled`
+ * setting is left — a half-working Vim mode is worse than none.
+ */
+let typeInterceptorReady = false;
 
 /**
  * The selection we last placed ourselves. VS Code delivers selection-change
@@ -77,12 +86,31 @@ function registerTypeInterceptor(context: vscode.ExtensionContext): void {
         return enqueue(() => handleKey(editor, text));
       })
     );
+    typeInterceptorReady = true;
   } catch (error) {
-    void vscode.window.showErrorMessage(
-      `Vim Like could not take over key input, most likely because another Vim extension is active. ${String(error)}`
-    );
-    enabled = false;
+    // `type` is a single, window-wide registration. Losing the race to another
+    // Vim extension is by far the most common reason to land here, so name the
+    // culprit instead of reporting a bare failure.
+    const rivals = conflictingExtensions();
+    const cause =
+      rivals.length > 0
+        ? `${rivals.join('、')} が同じキー入力の仕組みを使っています。どちらか一方を無効にしてください。`
+        : `他の拡張機能がキー入力を先に確保しています。 ${String(error)}`;
+
+    void vscode.window.showErrorMessage(`Vim Like: キー入力を受け取れないため無効化しました。${cause}`);
   }
+}
+
+/** Extensions known to register the `type` command, which only one owner may have. */
+const RIVAL_EXTENSIONS: readonly { id: string; name: string }[] = [
+  { id: 'asvetliakov.vscode-neovim', name: 'VSCode Neovim' },
+  { id: 'vscodevim.vim', name: 'Vim (vscodevim.vim)' }
+];
+
+function conflictingExtensions(): string[] {
+  return RIVAL_EXTENSIONS.filter(rival => vscode.extensions.getExtension(rival.id) !== undefined).map(
+    rival => rival.name
+  );
 }
 
 async function handleKey(editor: vscode.TextEditor, key: string): Promise<void> {
@@ -215,10 +243,12 @@ function loadRemaps(): void {
   const settings = configuration();
   const { table, problems } = RemapTable.from({
     normal: settings.get<RemapRule[]>('normalModeKeyBindings', []),
-    visual: settings.get<RemapRule[]>('visualModeKeyBindings', [])
+    visual: settings.get<RemapRule[]>('visualModeKeyBindings', []),
+    leader: settings.get<string>('leader', DEFAULT_LEADER)
   });
 
   engine.setRemaps(table);
+  leader = table.leader;
 
   if (problems.length > 0) {
     void vscode.window.showWarningMessage(
@@ -241,20 +271,33 @@ function setMode(mode: Mode): void {
   state = { ...state, mode };
 }
 
+/**
+ * The extension counts as active only when the `enabled` setting is on *and* we
+ * own key input. Reporting active without owning `type` would light up the
+ * keybindings and the status bar while Normal mode silently let every key
+ * through to the buffer.
+ */
+function isActive(): boolean {
+  return enabled && typeInterceptorReady;
+}
+
 /** Pushes the current mode out to the context keys, the status bar and the caret. */
 async function refresh(): Promise<void> {
+  const active = isActive();
+
   // `refresh` runs on every keystroke, and `setContext` is a round trip through
   // the extension host, so publish only when the mode has actually changed.
-  const published = `${enabled}:${state.mode}`;
+  const published = `${active}:${state.mode}`;
   if (published !== lastPublishedMode) {
     lastPublishedMode = published;
-    await vscode.commands.executeCommand('setContext', 'vimLike.active', enabled);
-    await vscode.commands.executeCommand('setContext', 'vimLike.mode', enabled ? state.mode : 'insert');
+    await vscode.commands.executeCommand('setContext', 'vimLike.active', active);
+    await vscode.commands.executeCommand('setContext', 'vimLike.mode', active ? state.mode : 'insert');
   }
 
   statusBar.update(state.mode, {
     visible: configuration().get('showModeInStatusBar', true),
-    enabled
+    enabled: active,
+    pending: describePending(state, leader)
   });
 
   const editor = vscode.window.activeTextEditor;
@@ -263,9 +306,7 @@ async function refresh(): Promise<void> {
   // A block caret is how Normal mode announces itself. Only assign when it
   // actually differs — this runs on every keystroke.
   const wanted =
-    enabled && state.mode !== 'insert'
-      ? vscode.TextEditorCursorStyle.Block
-      : vscode.TextEditorCursorStyle.Line;
+    active && state.mode !== 'insert' ? vscode.TextEditorCursorStyle.Block : vscode.TextEditorCursorStyle.Line;
   if (editor.options.cursorStyle !== wanted) {
     editor.options = { ...editor.options, cursorStyle: wanted };
   }

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
+import { isValidKeyBinding } from './keySyntax';
 
 const ROOT = path.resolve(__dirname, '..', '..');
 
@@ -15,39 +16,9 @@ interface Manifest {
 const manifest = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')) as Manifest;
 const extensionSource = readFileSync(path.join(ROOT, 'src', 'extension.ts'), 'utf8');
 
-/**
- * VS Code silently ignores a keybinding whose key it cannot parse, so a typo
- * produces no error anywhere — the binding simply never fires. This list is the
- * set of key names VS Code accepts; `$`, for instance, is not among them and has
- * to be written as `shift+4`.
- */
-const MODIFIERS = new Set(['ctrl', 'shift', 'alt', 'cmd', 'meta', 'win']);
-
-const KEYS = new Set([
-  ...'abcdefghijklmnopqrstuvwxyz'.split(''),
-  ...'0123456789'.split(''),
-  '`', '-', '=', '[', ']', '\\', ';', "'", ',', '.', '/',
-  ...Array.from({ length: 19 }, (_, index) => `f${index + 1}`),
-  ...Array.from({ length: 10 }, (_, index) => `numpad${index}`),
-  'numpad_multiply', 'numpad_add', 'numpad_separator',
-  'numpad_subtract', 'numpad_decimal', 'numpad_divide',
-  'left', 'up', 'right', 'down', 'pageup', 'pagedown', 'end', 'home',
-  'tab', 'enter', 'escape', 'space', 'backspace', 'delete',
-  'pausebreak', 'capslock', 'insert'
-]);
-
-function isValidChord(chord: string): boolean {
-  const parts = chord.split('+');
-  const key = parts.pop();
-  if (key === undefined || !KEYS.has(key)) return false;
-  return parts.every(part => MODIFIERS.has(part));
-}
-
 test('every contributed keybinding uses a key VS Code can parse', () => {
   for (const binding of manifest.contributes.keybindings) {
-    for (const chord of binding.key.split(' ')) {
-      assert.ok(isValidChord(chord), `"${binding.key}" is not a valid key for ${binding.command}`);
-    }
+    assert.ok(isValidKeyBinding(binding.key), `"${binding.key}" is not a valid key for ${binding.command}`);
   }
 });
 

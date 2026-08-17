@@ -3,7 +3,7 @@ import { TextBuffer, clampLine, lastLine, lineLength, linewiseRange, linewiseTex
 import { clampCursor, firstNonBlank, indentOf, maxColumn } from './cursor';
 import { Motion, MotionContext, lookupMotion } from './motions';
 import { OperatorName, Target, applyOperator, paste, resolveMotionTarget } from './operators';
-import { SPECIAL_KEYS, isSpecialKey } from './keys';
+import { SPECIAL_KEYS, describeKeys, isSpecialKey } from './keys';
 import { Command, awaitsLiteralKey, parse } from './parser';
 import { RegisterStore } from './registers';
 import { RemapTable } from './remap';
@@ -54,6 +54,17 @@ export function createState(mode: Mode = 'normal', cursor: Position = pos(0, 0))
  */
 export function withExternalCursor(state: VimState, cursor: Position): VimState {
   return { ...state, pendingKeys: '', remapPending: [], desiredColumn: cursor.character };
+}
+
+/**
+ * The keys the engine is currently holding, rendered for display.
+ *
+ * A half-typed sequence is otherwise invisible: with Space as the leader there is
+ * nothing on screen to distinguish "waiting for the rest of `<leader>w`" from
+ * "ignored your keystroke".
+ */
+export function describePending(state: VimState, leader: string): string {
+  return describeKeys([...state.pendingKeys, ...state.remapPending], leader);
 }
 
 /** Normal-mode keys that are just shorthand for an operator, e.g. `D` for `d$`. */

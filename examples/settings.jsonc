@@ -1,0 +1,155 @@
+// init.vim のキー割り当てを Vim Like の設定に置き換えたものです。
+//
+// 使い方: 下の波括弧の「中身」(vimLike.* の3つのキー) をコピーして、お使いの
+// settings.json の中に貼り付けてください。いちばん外側の波括弧ごと貼ると、
+// 既存の設定を上書きしてしまいます。settings.json にはコメントを書けるので、
+// 各行のコメントもそのまま持っていけます。
+//
+// 対応づけの元にした init.vim の行を、各項目のコメントに添えてあります。
+// 置き換えられなかったものはこのファイルの末尾にまとめています。
+{
+  // let mapleader="\<space>"
+  "vimLike.leader": " ",
+
+  "vimLike.normalModeKeyBindings": [
+    // ---- 移動キーの置き換え -------------------------------------------------
+    // nnoremap H ^
+    { "before": ["H"], "after": ["^"] },
+    // nnoremap J 10j
+    { "before": ["J"], "after": ["1", "0", "j"] },
+    // nnoremap K 10k
+    { "before": ["K"], "after": ["1", "0", "k"] },
+    // nnoremap L $
+    { "before": ["L"], "after": ["$"] },
+    // nnoremap U <c-r>
+    { "before": ["U"], "after": ["<C-r>"] },
+
+    // ---- エディターグループ間の移動 -----------------------------------------
+    // nnoremap <leader>h <c-w>h
+    { "before": ["<leader>", "h"], "commands": ["workbench.action.navigateLeft"] },
+    // nnoremap <leader>j <c-w>j
+    { "before": ["<leader>", "j"], "commands": ["workbench.action.navigateDown"] },
+    // nnoremap <leader>k <c-w>k
+    { "before": ["<leader>", "k"], "commands": ["workbench.action.navigateUp"] },
+    // nnoremap <leader>l <c-w>l
+    { "before": ["<leader>", "l"], "commands": ["workbench.action.navigateRight"] },
+
+    // ---- タブの移動と作成 ---------------------------------------------------
+    // nnoremap <leader>y gT
+    { "before": ["<leader>", "y"], "commands": ["workbench.action.previousEditor"] },
+    // nnoremap <leader>o gt
+    { "before": ["<leader>", "o"], "commands": ["workbench.action.nextEditor"] },
+    // nnoremap <leader>i :tabnew<enter>
+    { "before": ["<leader>", "i"], "commands": ["workbench.action.files.newUntitledFile"] },
+
+    // ---- 分割とリサイズ -----------------------------------------------------
+    // nnoremap <leader>J :vs<enter>   (縦に分割 = 左右に並べる)
+    { "before": ["<leader>", "J"], "commands": ["workbench.action.splitEditor"] },
+    // nnoremap <leader>L :sp<enter>   (横に分割 = 上下に並べる)
+    { "before": ["<leader>", "L"], "commands": ["workbench.action.splitEditorDown"] },
+    // nnoremap <leader>wh <c-w><
+    { "before": ["<leader>", "w", "h"], "commands": ["workbench.action.decreaseViewWidth"] },
+    // nnoremap <leader>wj <c-w>-
+    { "before": ["<leader>", "w", "j"], "commands": ["workbench.action.decreaseViewHeight"] },
+    // nnoremap <leader>wk <c-w>+
+    { "before": ["<leader>", "w", "k"], "commands": ["workbench.action.increaseViewHeight"] },
+    // nnoremap <leader>wl <c-w>>
+    { "before": ["<leader>", "w", "l"], "commands": ["workbench.action.increaseViewWidth"] },
+    // nnoremap <leader>ww <c-w>=
+    { "before": ["<leader>", "w", "w"], "commands": ["workbench.action.evenEditorWidths"] },
+
+    // ---- ファイル操作と各種トグル -------------------------------------------
+    // nnoremap <leader>s :w<enter>
+    { "before": ["<leader>", "s"], "commands": ["workbench.action.files.save"] },
+    // nnoremap <leader>n :NvimTreeToggle<enter>
+    // サイドバーにエクスプローラーを開いてから、ファイルツリーへフォーカスを
+    // 移します。閉じている状態からでも1打鍵でツリーに入れます。
+    //
+    // これは行き (エディター → ファイルツリー) だけです。ツリー側で同じ打鍵を
+    // 使って閉じるには、examples/keybindings.jsonc の "space n" も入れてください。
+    {
+      "before": ["<leader>", "n"],
+      "commands": ["workbench.view.explorer", "workbench.files.action.focusFilesExplorer"]
+    },
+    // nnoremap <leader>t :Term<enter>
+    { "before": ["<leader>", "t"], "commands": ["workbench.action.terminal.toggleTerminal"] },
+    // nnoremap <leader>z zi
+    { "before": ["<leader>", "z"], "commands": ["editor.toggleFold"] },
+    // map <leader>/ gc
+    { "before": ["<leader>", "/"], "commands": ["editor.action.commentLine"] },
+
+    // ---- AI アシスタントへ移動 ----------------------------------------------
+    // Claude Code をサイドバーに開いて、入力欄へフォーカスします。
+    // 閉じている状態からでも開くよう、open 系のコマンドを先に呼んでいます
+    // (focus だけでは、開いていないときに何も起きない可能性があります)。
+    //
+    // 開く場所は好みで差し替えられます。
+    //   claude-vscode.sidebar.open        サイドバーに開く (下の設定)
+    //   claude-vscode.editor.open         新しいタブに開く
+    //   claude-vscode.primaryEditor.open  メインのエディター領域に開く
+    //   claude-vscode.window.open         別ウィンドウに開く
+    //   claude-vscode.editor.openLast     前回の場所に開き直す
+    //
+    // これは行き (エディター → Claude Code) だけです。<leader>m で戻ることは
+    // できません。Claude Code の画面は Webview の入力欄で、スペースを打つと
+    // 文字が入ってしまうためです。
+    //
+    // 往復には examples/keybindings.jsonc の Ctrl+Alt+M を使ってください。
+    // Claude Code 自身は Cmd+Escape に往復を割り当てていますが、macOS の
+    // システムショートカットが Cmd+Escape を占有しているため届きません。
+    {
+      "before": ["<leader>", "m"],
+      "commands": ["claude-vscode.sidebar.open", "claude-vscode.focus"]
+    }
+
+    // GitHub Copilot Chat を使う場合はこちらを足してください。
+    // 現在この環境の VS Code には Copilot 系の拡張機能が入っていないため、
+    // コマンド ID が正しいかは未確認です。
+    // { "before": ["<leader>", "M"], "commands": ["workbench.action.chat.open"] }
+  ],
+
+  "vimLike.visualModeKeyBindings": [
+    // vnoremap H ^
+    { "before": ["H"], "after": ["^"] },
+    // vnoremap J 10j
+    { "before": ["J"], "after": ["1", "0", "j"] },
+    // vnoremap K 10k
+    { "before": ["K"], "after": ["1", "0", "k"] },
+    // vnoremap L $
+    { "before": ["L"], "after": ["$"] },
+    // map <leader>/ gc  (map なので Visual モードにも効きます)
+    { "before": ["<leader>", "/"], "commands": ["editor.action.commentLine"] }
+  ]
+}
+
+// ============================================================================
+// 置き換えなかったもの
+// ============================================================================
+//
+// 設定が不要なもの
+//   nnoremap <c-s> :w<enter>
+//     Ctrl+S / Cmd+S は VS Code の既定で保存です。Ctrl 系のキーはそもそも
+//     `type` コマンドを通らないため、この設定では扱えません。変えたい場合は
+//     VS Code のキーボードショートカット設定で行ってください。
+//
+// 近い動作に置き換えたもの (厳密には別物)
+//   nnoremap <leader>n :NvimTreeToggle<enter>
+//     workbench.view.explorer はエクスプローラーを開いてフォーカスします。
+//     トグルではないので、閉じるには Ctrl+B などを使ってください。
+//   nnoremap <leader>z zi
+//     VS Code には「折りたたみ機能そのものの有効・無効」という状態がありません。
+//     editor.toggleFold はカーソル位置の折りたたみを開閉します。
+//   nnoremap <leader>i :tabnew<enter>
+//     workbench.action.files.newUntitledFile は空のファイルを開きます。
+//     既存ファイルを開きたい場合は workbench.action.quickOpen のほうが近いです。
+//   map <leader>/ gc
+//     editor.action.commentLine は現在行 (Visual では選択範囲) を対象にします。
+//     `gc` のようにモーションと組み合わせる形は未対応です (issue #3)。
+//
+// 置き換え先がないもの
+//   nnoremap <leader>u :-tabnew<enter>    現在のタブの手前に開く相当がありません
+//   nnoremap <leader>v :set fileformat=unix<enter>:set list!<enter>
+//   nnoremap <leader>x :%!xxd
+//   nnoremap <leader>X :%!xxd -r
+//     外部コマンドへのパイプと Vim 固有のオプション操作は対象外です。
+//     改行コードの変更は VS Code の画面右下の表示から行えます。

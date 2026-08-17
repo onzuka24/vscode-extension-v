@@ -5,7 +5,14 @@
       "name": "Run Extension",
       "type": "extensionHost",
       "request": "launch",
-      "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+      // VS Code 全体で1つしか登録できない `type` コマンドを使うため、同じ仕組みを使う
+      // Vim 系の拡張機能とだけ衝突します。該当するものを名指しで無効にして起動します
+      // (他の拡張機能はそのまま使えます)。
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "--disable-extension=asvetliakov.vscode-neovim",
+        "--disable-extension=vscodevim.vim"
+      ],
       "outFiles": ["${workspaceFolder}/out/**/*.js"],
       "preLaunchTask": "${defaultBuildTask}"
     }

@@ -1,4 +1,4 @@
-import { normalizeKey } from './keys';
+import { DEFAULT_LEADER, normalizeKey, resolveLeader } from './keys';
 import { Mode } from './types';
 
 /**
@@ -21,6 +21,8 @@ export type RemapScope = 'normal' | 'visual';
 export interface RemapConfiguration {
   readonly normal?: readonly RemapRule[];
   readonly visual?: readonly RemapRule[];
+  /** What `<leader>` stands for. A bare character or `<Space>`; defaults to Space. */
+  readonly leader?: string;
 }
 
 export type RemapMatch =
@@ -33,10 +35,14 @@ const NO_MATCH: RemapMatch = { kind: 'none' };
 const PREFIX: RemapMatch = { kind: 'prefix' };
 
 export class RemapTable {
-  private constructor(private readonly rules: Readonly<Record<RemapScope, readonly RemapRule[]>>) {}
+  private constructor(
+    private readonly rules: Readonly<Record<RemapScope, readonly RemapRule[]>>,
+    /** The resolved leader key, needed to render pending sequences readably. */
+    public readonly leader: string
+  ) {}
 
   public static empty(): RemapTable {
-    return new RemapTable({ normal: [], visual: [] });
+    return new RemapTable({ normal: [], visual: [] }, DEFAULT_LEADER);
   }
 
   /**
@@ -46,9 +52,20 @@ export class RemapTable {
    */
   public static from(configuration: RemapConfiguration): { table: RemapTable; problems: string[] } {
     const problems: string[] = [];
-    const normal = compile(configuration.normal ?? [], 'normalModeKeyBindings', problems);
-    const visual = compile(configuration.visual ?? [], 'visualModeKeyBindings', problems);
-    return { table: new RemapTable({ normal, visual }), problems };
+
+    let leader = DEFAULT_LEADER;
+    if (configuration.leader !== undefined && configuration.leader !== '') {
+      const resolved = resolveLeader(configuration.leader);
+      if (resolved === null) {
+        problems.push(`vimLike.leader の "${configuration.leader}" は解釈できないキーです。`);
+      } else {
+        leader = resolved;
+      }
+    }
+
+    const normal = compile(configuration.normal ?? [], 'normalModeKeyBindings', problems, leader);
+    const visual = compile(configuration.visual ?? [], 'visualModeKeyBindings', problems, leader);
+    return { table: new RemapTable({ normal, visual }, leader), problems };
   }
 
   public get isEmpty(): boolean {
@@ -91,13 +108,18 @@ function startsWith(sequence: readonly string[], prefix: readonly string[]): boo
   return prefix.every((key, index) => sequence[index] === key);
 }
 
-function compile(rules: readonly RemapRule[], setting: string, problems: string[]): RemapRule[] {
+function compile(
+  rules: readonly RemapRule[],
+  setting: string,
+  problems: string[],
+  leader: string
+): RemapRule[] {
   const compiled: RemapRule[] = [];
 
   rules.forEach((rule, index) => {
     const where = `vimLike.${setting}[${index}]`;
 
-    const before = normalizeAll(rule.before, `${where}.before`, problems);
+    const before = normalizeAll(rule.before, `${where}.before`, problems, leader);
     if (!before) return;
     if (before.length === 0) {
       problems.push(`${where}.before は空にできません。`);
@@ -116,7 +138,7 @@ function compile(rules: readonly RemapRule[], setting: string, problems: string[
       return;
     }
 
-    const after = normalizeAll(rawAfter, `${where}.after`, problems);
+    const after = normalizeAll(rawAfter, `${where}.after`, problems, leader);
     if (!after) return;
     compiled.push({ before, after });
   });
@@ -124,10 +146,15 @@ function compile(rules: readonly RemapRule[], setting: string, problems: string[
   return compiled;
 }
 
-function normalizeAll(keys: readonly string[], where: string, problems: string[]): string[] | null {
+function normalizeAll(
+  keys: readonly string[],
+  where: string,
+  problems: string[],
+  leader: string
+): string[] | null {
   const normalized: string[] = [];
   for (const key of keys) {
-    const value = normalizeKey(key);
+    const value = normalizeKey(key, leader);
     if (value === null) {
       problems.push(`${where} の "${key}" は解釈できないキーです。`);
       return null;
