@@ -144,3 +144,27 @@ test('同じキーを複数に割り当てる場合は条件が重ならない',
     }
   }
 });
+
+/**
+ * 「見えているか」を表す条件（`claude-vscode.sideBarActive` など）は、別の場所で打って
+ * いるあいだも真のままです。これだけでキーを絞ると、同じキーの別の割り当てと同時に成立し、
+ * VS Code は後に書いたほうを採るため、狙ったほうが発火しません。開いていないときは正しく
+ * 動くので、「開いているときだけ効かない」という分かりにくい形で出ます。
+ *
+ * フォーカスを表す条件はいずれもこの語のどれかを含みます。
+ */
+const FOCUS_CONDITION = /focusedView|activeWebviewPanelId|Focus\b/;
+
+test('キーバインドは、見えているかではなくフォーカスで絞る', () => {
+  for (const binding of keybindings) {
+    // OR で並ぶ条件はどれか1つが成立すれば発火するので、すべてを個別に見ます。
+    for (const alternative of (binding.when ?? '').split('||')) {
+      assert.match(
+        alternative,
+        FOCUS_CONDITION,
+        `${binding.key} (${binding.command}) の条件 "${alternative.trim()}" が` +
+          'フォーカスを見ていません。他の場所で打ったキーまで奪います'
+      );
+    }
+  }
+});

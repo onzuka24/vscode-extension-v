@@ -76,23 +76,48 @@
   { "key": "escape", "command": "workbench.action.focusActiveEditorGroup", "when": "filesExplorerFocus && !inputFocus" },
 
   // ---- Claude Code との往復 ------------------------------------------------
-  // Claude Code 自身も Cmd+Escape に focus と blur を割り当てていますが、
-  // macOS のシステムショートカット (symbolic hotkey 73) が Cmd+Escape を
-  // 占有しているため、キーが VS Code まで届きません。別のキーで組み直します。
+  // 行きは settings.json の <leader>m と、ここに書く ctrl+escape の2通りです。どちらも
+  // 「サイドバーに開く → 入力欄へフォーカス」を続けて実行するので、閉じている状態からでも
+  // 1打鍵で入れます。2つ実行するために `runCommands` を挟んでいます。
   //
-  // <leader>m では帰りを作れません。Claude Code の画面は Webview の入力欄で、
-  // スペースを打つと文字が入ってしまうためです。修飾キーを使います。
+  // 帰りに <leader> は使えません。Claude Code の画面は Webview の入力欄で、打鍵が
+  // `type` コマンドを通らないためです。修飾キーのないキーは文字として入力欄に
+  // 入ってしまうので、修飾キー付きの中から選びます。ただし、次のものは使えません。
   //
-  // macOS では `alt` は Option (⌥) キーを指します。Option 単独と文字の組み合わせは
-  // 特殊文字になるため (US 配列で Option+M は µ)、Webview の入力欄では文字が
-  // 入ってしまいます。Control を足すと文字合成が働かなくなるので、alt+m ではなく
-  // ctrl+alt+m にしています。
-  { "key": "ctrl+alt+m", "command": "claude-vscode.focus", "when": "editorTextFocus" },
+  //   Option (⌥) + 文字   入力欄で特殊文字になる (US 配列で Option+M は µ)
+  //   Cmd+Escape          macOS のシステムショートカット (symbolic hotkey 73) が占有
+  //   Cmd+H               アプリケーションメニューの「隠す」が先に受け取る
+  //   Cmd+J               ターミナル (パネル) の表示切替に使う
+  //
+  // 残ったものの中でいちばん押しやすいのが ctrl+escape なので、往復ともこれ1つに
+  // しています。行きと帰りは条件が排他なので、同じ打鍵が居場所に応じてどちらかに
+  // なります。
+  //
+  // 行き (エディター → Claude Code)。
   {
-    "key": "ctrl+alt+m",
-    "command": "claude-vscode.blur",
-    "when": "activeWebviewPanelId == 'claudeVSCodePanel' || claude-vscode.sideBarActive"
+    "key": "ctrl+escape",
+    "command": "runCommands",
+    "args": { "commands": ["claude-vscode.sidebar.open", "claude-vscode.focus"] },
+    "when": "editorTextFocus"
   },
+
+  // 帰り (Claude Code → 閉じてエディターへ)。
+  //
+  // 閉じるコマンドは開いている場所ごとに違うので、条件も「どの場所にフォーカスが
+  // あるか」で揃えます。順に、エディターのタブ、二次サイドバー (右)、サイドバー (左)
+  // です。3つとも入れておけば、どこに開いていても同じ打鍵で閉じられます。
+  //
+  // ビューの id (`focusedView == 'claudeVSCodeSidebarSecondary'` など) では判定しません。
+  // id は場所ではなくビューそのものを指すので、Claude Code の画面を左右のサイドバー間で
+  // 移しても変わりません。すると「左にあるのに右を閉じようとする」というずれが起き、
+  // キーは発火しているのに何も起きない、という形になります。
+  //
+  // `claude-vscode.sideBarActive` は「Claude Code の画面が見えているか」であって、
+  // フォーカスの有無ではありません。これだけで絞るとエディターで打っているあいだも
+  // 真のままなので、場所の条件と組み合わせて初めて「Claude Code にいる」を表せます。
+  { "key": "ctrl+escape", "command": "workbench.action.closeActiveEditor", "when": "activeWebviewPanelId == 'claudeVSCodePanel'" },
+  { "key": "ctrl+escape", "command": "workbench.action.closeAuxiliaryBar", "when": "auxiliaryBarFocus && claude-vscode.sideBarActive" },
+  { "key": "ctrl+escape", "command": "workbench.action.closeSidebar", "when": "sideBarFocus && claude-vscode.sideBarActive" },
 
   // ---- 検索結果・SCM など他のリストにも同じ移動を ---------------------------
   // listFocus はエクスプローラーを含むすべてのリストで真になるため、
