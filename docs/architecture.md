@@ -30,13 +30,18 @@ vscode-extension-v/
 │   └── extension.ts         activate。type の乗っ取りとコマンド・イベントの配線
 │
 ├── test/                    TypeScript で書き、コンパイルして node --test で実行
+│   ├── run.ts                 npm test の入口。自動テストと手動テストの振り分け
 │   ├── harness.ts             run(text, keys) — 全テストの入口
 │   ├── buffer.test.ts         範囲計算とクランプ
 │   ├── motions.test.ts        モーション
 │   ├── operators.test.ts      オペレータ・レジスタ・単独コマンド
 │   ├── linewise.test.ts       行単位の操作
 │   ├── visual.test.ts         Visual モードとテキストオブジェクト
-│   └── manifest.test.ts       構造を守るテスト（後述）
+│   ├── manifest.test.ts       構造を守るテスト（後述）
+│   ├── manual.test.ts         手動テストの項目表と進行の検査（後述）
+│   └── manual/
+│       ├── cases.ts           手動で確かめる項目の表
+│       └── runner.ts          手順を出して結果を受け取る対話実行
 │
 ├── docs/                    このフォルダ
 ├── package.json             コマンド・キーバインド・設定の宣言
@@ -308,6 +313,28 @@ assert.equal(run('foo(bar)baz', 'ci(X<Esc>', { cursor: pos(0, 5) }).text, 'foo(X
 | 全キーバインドに `editorTextFocus` があるか | ターミナルや検索欄でキーを奪う事故 |
 | Escape がウィジェットを除外しているか | サジェストを Escape で閉じられなくなる事故 |
 | `src/core/` が `vscode` を import していないか | レイヤ違反によるテスト不能化 |
+
+### 手動テスト
+
+`type` の乗っ取り、ステータスバー、カーソル形状、`when` 句の効き方、設定の再読み込みは、
+本物の VS Code がないと観測できません。これらを [test/manual/cases.ts](../test/manual/cases.ts) に
+項目として書き出し、`npm test -- -manual` を付けたときだけ、手順を1件ずつ表示して結果を
+受け取ります。付けない場合は skip として一覧に出るだけなので、CI は素通りします。
+
+```sh
+npm test              # 自動テストのみ。手動の項目は skip として並ぶ
+npm test -- -manual   # 自動テストのあと、手動テストの結果を対話で受け取る
+npm test -- -manual=ui,crlf-buffer   # id か area で絞り込む
+```
+
+各項目に「なぜ自動テストにできないのか」を書かせているのは、自動化できるものが紛れ込むと、
+誰も実行しないまま古びていくためです。答え終わると、Pull Request の「手動で確認したこと」へ
+そのまま貼れる Markdown が出ます。違ったと答えた項目があれば終了コードは 1 になります。
+
+手動テストが `node --test` の中ではなく [test/run.ts](../test/run.ts) から呼ばれるのは、
+テストファイルが子プロセスで動き、標準入力が繋がらないためです。対話は親プロセスに置き、
+入出力は差し替えられる形（`ManualIo`）にしてあるので、進行そのもの — 答えの解釈、中断の扱い、
+集計 — は [manual.test.ts](../test/manual.test.ts) が自動で検査しています。
 
 ## CI
 

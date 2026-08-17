@@ -173,7 +173,7 @@
     "typecheck": "tsc -p ./ --noEmit",
     "lint": "eslint .",
     "pretest": "npm run compile",
-    "test": "node --test \"out/test/**/*.test.js\""
+    "test": "node out/test/run.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
