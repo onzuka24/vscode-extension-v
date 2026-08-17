@@ -4,6 +4,8 @@ import path from 'node:path';
 import test from 'node:test';
 import { RemapConfiguration, RemapRule, RemapTable } from '../src/core/remap';
 import { run } from './harness';
+import { parseJsonc } from './jsonc';
+import { isValidKeyBinding } from './keySyntax';
 
 /**
  * The template in `examples/` is the one artefact a user copies verbatim, so a
@@ -19,7 +21,7 @@ interface Settings {
   'vimLike.visualModeKeyBindings': RemapRule[];
 }
 
-const settings = JSON.parse(extractObject(stripComments(source))) as Settings;
+const settings = parseJsonc<Settings>(source);
 
 const configuration: RemapConfiguration = {
   leader: settings['vimLike.leader'],
@@ -57,6 +59,7 @@ test('テンプレートの leader マッピングが発火する', () => {
   assert.deepEqual(run('abc', ' wh', { remaps }).commands, ['workbench.action.decreaseViewWidth']);
   assert.deepEqual(run('abc', ' ww', { remaps }).commands, ['workbench.action.evenEditorWidths']);
   assert.deepEqual(run('abc', ' /', { remaps }).commands, ['editor.action.commentLine']);
+  assert.deepEqual(run('abc', ' m', { remaps }).commands, ['claude-vscode.focus']);
 });
 
 test('テンプレートの Visual モード側も効く', () => {
@@ -76,64 +79,61 @@ function pos0(character: number): { line: number; character: number } {
   return { line: 0, character };
 }
 
-/** Removes `//` comments, leaving anything that appears inside a string alone. */
-function stripComments(text: string): string {
-  let result = '';
-  let inString = false;
-  let escaped = false;
+// ---------------------------------------------------------------------------
+// examples/keybindings.jsonc — リストを hjkl で操作するためのキーバインド例
+// ---------------------------------------------------------------------------
 
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i]!;
-
-    if (inString) {
-      result += char;
-      if (escaped) escaped = false;
-      else if (char === '\\') escaped = true;
-      else if (char === '"') inString = false;
-      continue;
-    }
-
-    if (char === '"') {
-      inString = true;
-      result += char;
-      continue;
-    }
-
-    if (char === '/' && text[i + 1] === '/') {
-      const newline = text.indexOf('\n', i);
-      if (newline === -1) break;
-      i = newline - 1;
-      continue;
-    }
-
-    result += char;
-  }
-  return result;
+interface KeyBinding {
+  key: string;
+  command: string;
+  when?: string;
 }
 
-/** Takes the first balanced `{...}`, ignoring the explanatory notes that follow it. */
-function extractObject(text: string): string {
-  const start = text.indexOf('{');
-  assert.notEqual(start, -1, 'テンプレートに JSON オブジェクトが見つかりません');
+const keybindings = parseJsonc<KeyBinding[]>(
+  readFileSync(path.join(ROOT, 'examples', 'keybindings.jsonc'), 'utf8')
+);
 
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
+test('キーバインド例はすべて VS Code が解釈できるキーを使う', () => {
+  assert.ok(keybindings.length > 0);
+  for (const binding of keybindings) {
+    assert.ok(isValidKeyBinding(binding.key), `"${binding.key}" は ${binding.command} のキーとして無効です`);
+  }
+});
 
-  for (let i = start; i < text.length; i++) {
-    const char = text[i]!;
+test('キーバインド例はどれも適用範囲を絞っている', () => {
+  // when のないキーバインドは VS Code 全体で効いてしまいます。
+  for (const binding of keybindings) {
+    assert.ok(binding.when !== undefined && binding.when !== '', `${binding.key} に when がありません`);
+  }
+});
 
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (char === '\\') escaped = true;
-      else if (char === '"') inString = false;
-      continue;
-    }
+test('リスト操作のキーは入力欄にフォーカスがあるときは発火しない', () => {
+  // これを忘れると、エクスプローラーのファイル名入力中に j が押せなくなります。
+  const listBindings = keybindings.filter(
+    binding => binding.when?.includes('filesExplorerFocus') || binding.when?.includes('listFocus')
+  );
+  assert.ok(listBindings.length > 0);
+  for (const binding of listBindings) {
+    assert.ok(binding.when?.includes('!inputFocus'), `${binding.key} に !inputFocus がありません`);
+  }
+});
 
-    if (char === '"') inString = true;
-    else if (char === '{') depth++;
-    else if (char === '}' && --depth === 0) return text.slice(start, i + 1);
+test('同じキーを複数に割り当てる場合は条件が重ならない', () => {
+  const byKey = new Map<string, string[]>();
+  for (const binding of keybindings) {
+    byKey.set(binding.key, [...(byKey.get(binding.key) ?? []), binding.when ?? '']);
   }
 
-  throw new Error('テンプレートの波括弧が閉じていません');
-}
+  for (const [key, conditions] of byKey) {
+    if (conditions.length < 2) continue;
+
+    assert.equal(new Set(conditions).size, conditions.length, `${key} に同じ条件の割り当てが重複しています`);
+
+    // 往復させているキー (エディターと、それ以外の場所) は、エディター側が
+    // ちょうど1つでなければどちらが動くか決まりません。
+    const editorSide = conditions.filter(when => /(^|[^!])editorTextFocus/.test(when));
+    if (editorSide.length > 0) {
+      assert.equal(editorSide.length, 1, `${key} のエディター側の条件が1つになっていません`);
+    }
+  }
+});

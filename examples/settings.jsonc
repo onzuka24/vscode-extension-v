@@ -62,13 +62,33 @@
     // nnoremap <leader>s :w<enter>
     { "before": ["<leader>", "s"], "commands": ["workbench.action.files.save"] },
     // nnoremap <leader>n :NvimTreeToggle<enter>
+    // これは行き (エディター → ファイルツリー) だけです。同じ打鍵で戻るには
+    // examples/keybindings.jsonc の "space n" もあわせて入れてください。
     { "before": ["<leader>", "n"], "commands": ["workbench.view.explorer"] },
     // nnoremap <leader>t :Term<enter>
     { "before": ["<leader>", "t"], "commands": ["workbench.action.terminal.toggleTerminal"] },
     // nnoremap <leader>z zi
     { "before": ["<leader>", "z"], "commands": ["editor.toggleFold"] },
     // map <leader>/ gc
-    { "before": ["<leader>", "/"], "commands": ["editor.action.commentLine"] }
+    { "before": ["<leader>", "/"], "commands": ["editor.action.commentLine"] },
+
+    // ---- AI アシスタントへ移動 ----------------------------------------------
+    // Claude Code の入力欄へフォーカスします。Claude Code 自身が Cmd+Escape に
+    // 割り当てているものと同じコマンドです。
+    //
+    // これは行き (エディター → Claude Code) だけです。<leader>m で戻ることは
+    // できません。Claude Code の画面は Webview の入力欄で、スペースを打つと
+    // 文字が入ってしまうためです。
+    //
+    // 往復には examples/keybindings.jsonc の Ctrl+Alt+M を使ってください。
+    // Claude Code 自身は Cmd+Escape に往復を割り当てていますが、macOS の
+    // システムショートカットが Cmd+Escape を占有しているため届きません。
+    { "before": ["<leader>", "m"], "commands": ["claude-vscode.focus"] }
+
+    // GitHub Copilot Chat を使う場合はこちらを足してください。
+    // 現在この環境の VS Code には Copilot 系の拡張機能が入っていないため、
+    // コマンド ID が正しいかは未確認です。
+    // { "before": ["<leader>", "M"], "commands": ["workbench.action.chat.open"] }
   ],
 
   "vimLike.visualModeKeyBindings": [

@@ -1,0 +1,90 @@
+// エクスプローラーなどのリスト表示を hjkl で操作するためのキーバインドです。
+//
+// これは settings.json ではなく keybindings.json に書きます。
+// コマンドパレットで「基本設定: キーボード ショートカットを開く (JSON)」から開けます。
+//
+// なぜ settings.json ではないのか:
+//   エクスプローラーはツリービューであってテキストエディターではないため、
+//   この拡張機能のエンジン (モード・オペレータ・モーション) は動きません。
+//   打鍵が `type` コマンドを通らないからです。ここでできるのは、VS Code の
+//   list.* コマンドを Vim 風のキーに割り当てることだけです。
+//
+// 引き換えに失うもの:
+//   エクスプローラーで文字を打つとその名前のファイルへ飛ぶ「型入力ナビゲーション」が
+//   j k などの文字については効かなくなります。頻繁に使っている場合は、下の
+//   `when` に条件を足すか、該当する行を削ってください。
+[
+  // ---- エクスプローラー: 移動 ----------------------------------------------
+  { "key": "j", "command": "list.focusDown", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "k", "command": "list.focusUp", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "h", "command": "list.collapse", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "l", "command": "list.expand", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "g g", "command": "list.focusFirst", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "shift+g", "command": "list.focusLast", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "ctrl+d", "command": "list.focusPageDown", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "ctrl+u", "command": "list.focusPageUp", "when": "filesExplorerFocus && !inputFocus" },
+
+  // ---- エクスプローラー: ファイル操作 --------------------------------------
+  { "key": "o", "command": "list.select", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "shift+o", "command": "explorer.openToSide", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "a", "command": "explorer.newFile", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "shift+a", "command": "explorer.newFolder", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "r", "command": "renameFile", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "d", "command": "deleteFile", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "y", "command": "filesExplorer.copy", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "p", "command": "filesExplorer.paste", "when": "filesExplorerFocus && !inputFocus" },
+
+  // ---- エディターとエクスプローラーの往復 ----------------------------------
+  // init.vim の <leader>n (:NvimTreeToggle) にあたる行き来です。
+  //
+  // 行き (エディター → ツリー) は settings.json の <leader>n が担当します。
+  // 帰り (ツリー → エディター) をここで同じ打鍵として定義することで、
+  // スペース→n がどちらの向きにも効くようになります。
+  //
+  // 行きと帰りで担当が分かれるのは、ツリーの上では打鍵が `type` コマンドを
+  // 通らず、拡張機能側では扱えないためです。
+  { "key": "space n", "command": "workbench.action.focusActiveEditorGroup", "when": "filesExplorerFocus && !inputFocus" },
+  // Escape でも戻れるようにしておくと、迷ったときの逃げ道になります。
+  { "key": "escape", "command": "workbench.action.focusActiveEditorGroup", "when": "filesExplorerFocus && !inputFocus" },
+
+  // ---- Claude Code との往復 ------------------------------------------------
+  // Claude Code 自身も Cmd+Escape に focus と blur を割り当てていますが、
+  // macOS のシステムショートカット (symbolic hotkey 73) が Cmd+Escape を
+  // 占有しているため、キーが VS Code まで届きません。別のキーで組み直します。
+  //
+  // <leader>m では帰りを作れません。Claude Code の画面は Webview の入力欄で、
+  // スペースを打つと文字が入ってしまうためです。修飾キーを使います。
+  //
+  // macOS では `alt` は Option (⌥) キーを指します。Option 単独と文字の組み合わせは
+  // 特殊文字になるため (US 配列で Option+M は µ)、Webview の入力欄では文字が
+  // 入ってしまいます。Control を足すと文字合成が働かなくなるので、alt+m ではなく
+  // ctrl+alt+m にしています。
+  { "key": "ctrl+alt+m", "command": "claude-vscode.focus", "when": "editorTextFocus" },
+  {
+    "key": "ctrl+alt+m",
+    "command": "claude-vscode.blur",
+    "when": "activeWebviewPanelId == 'claudeVSCodePanel' || claude-vscode.sideBarActive"
+  },
+
+  // ---- 検索結果・SCM など他のリストにも同じ移動を ---------------------------
+  // listFocus はエクスプローラーを含むすべてのリストで真になるため、
+  // 上のエクスプローラー用と重複しないよう、ここでは移動だけに絞っています。
+  { "key": "j", "command": "list.focusDown", "when": "listFocus && !inputFocus && !filesExplorerFocus" },
+  { "key": "k", "command": "list.focusUp", "when": "listFocus && !inputFocus && !filesExplorerFocus" }
+]
+
+// ============================================================================
+// ターミナルについて
+// ============================================================================
+//
+// ターミナルの打鍵は疑似端末へそのまま渡されるため、VS Code の拡張機能からは
+// 手が出せません。この拡張機能に限らず、VSCodeVim も vscode-neovim も
+// ターミナル内でのモーダル編集は提供していません。
+//
+// 行編集を Vim 風にしたい場合はシェル側で設定してください。
+//
+//   bash:  set -o vi              (~/.bashrc)
+//   zsh:   bindkey -v             (~/.zshrc)
+//
+// なお init.vim の `tnoremap <Esc> <c-\><c-n>` は Neovim 内蔵ターミナルの
+// 設定なので、VS Code のターミナルには対応するものがありません。
