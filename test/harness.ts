@@ -21,8 +21,27 @@ export interface Session {
   readonly at: string;
   /** VS Code commands the engine asked for, in order. */
   readonly commands: readonly string[];
+  /** Indent requests the engine made, in order. */
+  readonly indents: readonly IndentRequest[];
   /** Half-typed sequence still being held, as the status bar would render it. */
   readonly pending: string;
+}
+
+/**
+ * What `>` and `<` asked for.
+ *
+ * The text is deliberately left untouched. How far a line moves is VS Code's
+ * decision — the step width, tabs versus spaces and the language's settings all
+ * live there — so a harness that shifted the string by a number of its own
+ * choosing would be describing something the editor never does. Recording the
+ * request keeps the tests about what the core actually decides: which lines, in
+ * which direction, how many steps.
+ */
+export interface IndentRequest {
+  readonly startLine: number;
+  readonly endLine: number;
+  readonly direction: 'in' | 'out';
+  readonly levels: number;
 }
 
 export interface RunOptions {
@@ -39,6 +58,7 @@ interface Editor {
   anchor: Position | null;
   state: VimState;
   commands: string[];
+  indents: IndentRequest[];
 }
 
 export function run(initial: string, keys: string, options: RunOptions = {}): Session {
@@ -58,7 +78,8 @@ export function run(initial: string, keys: string, options: RunOptions = {}): Se
     cursor,
     anchor: null,
     state: createState(options.mode ?? 'normal', cursor),
-    commands: []
+    commands: [],
+    indents: []
   };
 
   for (const key of tokenize(keys)) {
@@ -71,6 +92,7 @@ export function run(initial: string, keys: string, options: RunOptions = {}): Se
     mode: editor.state.mode,
     at: `${editor.cursor.line}:${editor.cursor.character}`,
     commands: editor.commands,
+    indents: editor.indents,
     pending: describePending(editor.state, leader)
   };
 }
@@ -120,6 +142,10 @@ function apply(editor: Editor, result: { state: VimState; actions: readonly Acti
   for (const action of result.actions) {
     if (action.type === 'edit') replaceRange(editor, action.range, action.text);
     else if (action.type === 'executeCommand') editor.commands.push(action.command);
+    else if (action.type === 'indent') {
+      const { startLine, endLine, direction, levels } = action;
+      editor.indents.push({ startLine, endLine, direction, levels });
+    }
   }
 
   editor.state = result.state;
