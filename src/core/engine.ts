@@ -1,7 +1,7 @@
 import { Action } from './actions';
 import { TextBuffer, clampLine, lastLine, lineLength, linewiseRange, linewiseText } from './buffer';
 import { clampCursor, firstNonBlank, indentOf, maxColumn } from './cursor';
-import { Motion, MotionContext, lookupMotion } from './motions';
+import { Motion, MotionContext, SEARCH_MOTIONS, WORD_SEARCH_MOTIONS, lookupMotion } from './motions';
 import {
   IndentOperatorName,
   OperatorName,
@@ -13,6 +13,7 @@ import {
   targetLines
 } from './operators';
 import { parseExCommand } from './excommands';
+import { SearchState, compilePattern, wordSearchAt } from './search';
 import { SPECIAL_KEYS, describeKeys, isSpecialKey } from './keys';
 import { Command, awaitsLiteralKey, parse } from './parser';
 import { RegisterStore } from './registers';
@@ -29,8 +30,16 @@ export interface VimState {
   /** Column `j` and `k` aim for; preserved across short lines as Vim does. */
   readonly desiredColumn: number;
   readonly visualAnchor: Position | null;
-  /** What has been typed after `:`. Only meaningful while the mode is `command`. */
-  readonly commandLine: string;
+  /** The line being typed after `:`, `/` or `?`. Null unless the mode is `command`. */
+  readonly commandLine: CommandLineState | null;
+}
+
+export interface CommandLineState {
+  /** Which line this is: an Ex command, or a search in one of the two directions. */
+  readonly prefix: ':' | '/' | '?';
+  readonly text: string;
+  /** The mode to return to. `v/foo<CR>` must land back in Visual mode. */
+  readonly returnMode: Mode;
 }
 
 export interface EngineResult {
@@ -62,7 +71,7 @@ export function createState(mode: Mode = 'normal', cursor: Position = pos(0, 0))
     remapPending: [],
     desiredColumn: cursor.character,
     visualAnchor: null,
-    commandLine: ''
+    commandLine: null
   };
 }
 
@@ -84,7 +93,7 @@ export function withExternalCursor(state: VimState, cursor: Position): VimState 
  */
 export function describePending(state: VimState, leader: string): string {
   // In command-line mode the line being typed *is* what the user needs to see.
-  if (state.mode === 'command') return `:${state.commandLine}`;
+  if (state.commandLine) return `${state.commandLine.prefix}${state.commandLine.text}`;
   return describeKeys([...state.pendingKeys, ...state.remapPending], leader);
 }
 
@@ -99,6 +108,8 @@ const OPERATOR_SHORTHAND: Readonly<Record<string, Partial<Command>>> = {
 export class VimEngine {
   private readonly registers = new RegisterStore();
   private remaps: RemapTable = RemapTable.empty();
+  /** The pattern `n`, `N` and a bare `/` repeat. Outlives any single keystroke. */
+  private lastSearch: SearchState | null = null;
 
   public setRemaps(table: RemapTable): void {
     this.remaps = table;
@@ -180,7 +191,14 @@ export class VimEngine {
 
     // `:` opens the command line — but only when no command is half-typed, so
     // that `f:` and `r:` still see a colon rather than losing it to the prompt.
-    if (key === ':' && state.pendingKeys === '') return this.openCommandLine(state);
+    if (key === ':' && state.pendingKeys === '') return this.openCommandLine(state, ':');
+
+    // `/` and `?` open the same line for a search. Unlike `:` they may follow an
+    // operator, because `d/foo<CR>` is a real Vim command; only a pending literal
+    // argument (`f/`, `r/`) takes the key as a character instead.
+    if ((key === '/' || key === '?') && !awaitsLiteralKey(state.pendingKeys, state.mode)) {
+      return this.openCommandLine(state, key);
+    }
 
     const keys = state.pendingKeys + key;
     const result = parse(keys, state.mode);
@@ -196,12 +214,16 @@ export class VimEngine {
 
   /** Escape arrives as a keybinding rather than through `type`. */
   public escape(state: VimState, buffer: TextBuffer, cursor: Position): EngineResult {
+    // Abandoning a command line returns to where it was opened from, so that
+    // Escape out of `v/foo` leaves the Visual selection as it was.
+    if (state.commandLine) return this.leaveCommandLine(state);
+
     // Leaving Insert mode steps the caret back onto the last character typed,
     // because in Normal mode the cursor sits on a character rather than after it.
     const target = state.mode === 'insert' ? pos(cursor.line, Math.max(0, cursor.character - 1)) : cursor;
     const position = clampCursor(buffer, target, 'normal');
     return {
-      state: { mode: 'normal', pendingKeys: '', remapPending: [], desiredColumn: position.character, visualAnchor: null, commandLine: '' },
+      state: { mode: 'normal', pendingKeys: '', remapPending: [], desiredColumn: position.character, visualAnchor: null, commandLine: null },
       actions: [
         { type: 'setCursor', position, toFirstNonBlank: false },
         { type: 'setMode', mode: 'normal' },
@@ -219,47 +241,63 @@ export class VimEngine {
    * do not arrive through `type`, so they come in as the `<CR>` and `<BS>` tokens
    * from the keybindings — the same route Escape already takes.
    */
-  private openCommandLine(state: VimState): EngineResult {
+  private openCommandLine(state: VimState, prefix: ':' | '/' | '?'): EngineResult {
     return {
-      state: { ...state, mode: 'command', pendingKeys: '', remapPending: [], commandLine: '' },
+      state: {
+        ...state,
+        mode: 'command',
+        remapPending: [],
+        commandLine: { prefix, text: '', returnMode: state.mode }
+      },
       actions: [{ type: 'setMode', mode: 'command' }],
       handled: true
     };
   }
 
   private handleCommandLine(state: VimState, key: string, buffer: TextBuffer): EngineResult {
-    if (key === SPECIAL_KEYS.enter) return this.runCommandLine(state, buffer);
+    const line = state.commandLine;
+    if (!line) return this.unchanged(state);
+
+    if (key === SPECIAL_KEYS.enter) {
+      return line.prefix === ':' ? this.runExCommand(state, line, buffer) : this.runSearch(state, line);
+    }
 
     if (key === SPECIAL_KEYS.backspace) {
-      // Rubbing out the `:` itself leaves the mode, as in Vim.
-      if (state.commandLine === '') return this.leaveCommandLine(state);
-      return { state: { ...state, commandLine: state.commandLine.slice(0, -1) }, actions: [], handled: true };
+      // Rubbing out the prefix itself leaves the mode, as in Vim.
+      if (line.text === '') return this.leaveCommandLine(state);
+      return { state: { ...state, commandLine: { ...line, text: line.text.slice(0, -1) } }, actions: [], handled: true };
     }
 
     // Any other key that `type` cannot deliver has no meaning in a command line.
     if (isSpecialKey(key)) return { state, actions: [], handled: true };
 
-    return { state: { ...state, commandLine: state.commandLine + key }, actions: [], handled: true };
+    return { state: { ...state, commandLine: { ...line, text: line.text + key } }, actions: [], handled: true };
   }
 
-  private leaveCommandLine(state: VimState): EngineResult {
+  /**
+   * Closes the line, caret untouched. Cancelling and searching return to the mode
+   * the line was opened from — `v/foo<CR>` keeps extending the selection — while
+   * an Ex command ends in Normal mode, as running one does in Vim.
+   */
+  private leaveCommandLine(state: VimState, to?: Mode): EngineResult {
+    const mode = to ?? state.commandLine?.returnMode ?? 'normal';
     return {
       state: {
         ...state,
-        mode: 'normal',
+        mode,
         pendingKeys: '',
         remapPending: [],
-        commandLine: '',
-        visualAnchor: null
+        commandLine: null,
+        visualAnchor: isVisual(mode) ? state.visualAnchor : null
       },
-      actions: [{ type: 'setMode', mode: 'normal' }],
+      actions: [{ type: 'setMode', mode }],
       handled: true
     };
   }
 
-  private runCommandLine(state: VimState, buffer: TextBuffer): EngineResult {
-    const parsed = parseExCommand(state.commandLine);
-    const closed = this.leaveCommandLine(state);
+  private runExCommand(state: VimState, line: CommandLineState, buffer: TextBuffer): EngineResult {
+    const parsed = parseExCommand(line.text);
+    const closed = this.leaveCommandLine(state, 'normal');
     const actions: Action[] = [...closed.actions];
 
     switch (parsed.kind) {
@@ -268,8 +306,8 @@ export class VimEngine {
         break;
 
       case 'goto': {
-        const line = parsed.line === 'last' ? lastLine(buffer) : clampLine(buffer, parsed.line - 1);
-        actions.push({ type: 'setCursor', position: pos(line, 0), toFirstNonBlank: true }, { type: 'reveal' });
+        const line_ = parsed.line === 'last' ? lastLine(buffer) : clampLine(buffer, parsed.line - 1);
+        actions.push({ type: 'setCursor', position: pos(line_, 0), toFirstNonBlank: true }, { type: 'reveal' });
         return { ...closed, state: { ...closed.state, desiredColumn: 0 }, actions };
       }
 
@@ -286,6 +324,48 @@ export class VimEngine {
     return { ...closed, actions };
   }
 
+  /**
+   * `/` and `?`. Nothing here moves the caret: the pattern is remembered and the
+   * keys typed before the slash are replayed with `n` appended. `d/foo<CR>` is
+   * then literally `dn` with the pattern already known, so operators, counts and
+   * Visual mode all come out right without a second implementation of any of them.
+   */
+  private runSearch(state: VimState, line: CommandLineState): EngineResult {
+    const closed = this.leaveCommandLine(state);
+    const direction = line.prefix === '?' ? 'backward' : 'forward';
+    // An empty pattern repeats the last one, which is how `//` and `??` work.
+    const pattern = line.text === '' ? this.lastSearch?.pattern : line.text;
+
+    if (pattern === undefined || pattern === '') {
+      return {
+        ...closed,
+        actions: [...closed.actions, { type: 'notify', message: 'E35: No previous regular expression' }]
+      };
+    }
+    if (!compilePattern(pattern)) {
+      return {
+        ...closed,
+        actions: [...closed.actions, { type: 'notify', message: `E383: Invalid search string: ${pattern}` }]
+      };
+    }
+
+    this.lastSearch = { pattern, direction };
+    return { ...closed, replay: [...state.pendingKeys, 'n'] };
+  }
+
+  /** A motion that could not move. Only a search says why; the rest are silent. */
+  private failedMotion(state: VimState, command: Command): EngineResult {
+    return SEARCH_MOTIONS.has(command.motion ?? '') ? this.searchFailure(state) : this.unchanged(state);
+  }
+
+  /** Why a search motion did not move, since a silent no-op reads as a bug. */
+  private searchFailure(state: VimState): EngineResult {
+    const message = this.lastSearch
+      ? `E486: Pattern not found: ${this.lastSearch.pattern}`
+      : 'E35: No previous regular expression';
+    return { ...this.unchanged(state), actions: [{ type: 'notify', message }] };
+  }
+
   public setMode(state: VimState, mode: Mode, cursor: Position): EngineResult {
     return {
       state: { ...state, mode, pendingKeys: '', visualAnchor: mode === 'normal' ? null : cursor },
@@ -295,10 +375,25 @@ export class VimEngine {
   }
 
   private execute(state: VimState, command: Command, buffer: TextBuffer, cursor: Position): EngineResult {
-    if (command.operator) return this.runOperator(state, command, buffer, cursor);
+    // `*` and `#` are `n` over the word under the cursor. Setting the search here
+    // rather than inside the motion keeps motions pure functions of their context.
+    let origin = cursor;
+    const wordDirection = command.motion === undefined ? undefined : WORD_SEARCH_MOTIONS[command.motion];
+    if (wordDirection) {
+      const word = wordSearchAt(buffer, cursor);
+      if (!word) {
+        return { ...this.unchanged(state), actions: [{ type: 'notify', message: 'E348: No string under cursor' }] };
+      }
+      this.lastSearch = { pattern: word.pattern, direction: wordDirection };
+      // Vim steps onto the word first when the caret is on the whitespace before
+      // it, so the occurrence it just picked up is not the one it lands on.
+      origin = word.start;
+    }
+
+    if (command.operator) return this.runOperator(state, command, buffer, origin);
     if (command.action) return this.runAction(state, command, buffer, cursor);
     if (command.textObject) return this.selectTextObject(state, command, buffer, cursor);
-    if (command.motion) return this.runMotion(state, command, buffer, cursor);
+    if (command.motion) return this.runMotion(state, command, buffer, origin);
     return this.unchanged(state);
   }
 
@@ -309,7 +404,7 @@ export class VimEngine {
     if (!motion) return this.unchanged(state);
 
     const destination = motion.exec(this.motionContext(state, command, buffer, cursor, false));
-    if (!destination) return this.unchanged(state);
+    if (!destination) return this.failedMotion(state, command);
 
     const position = clampCursor(buffer, destination, state.mode);
     const desiredColumn = nextDesiredColumn(motion, state.desiredColumn, position);
@@ -346,7 +441,8 @@ export class VimEngine {
       mode: state.mode,
       desiredColumn: state.desiredColumn,
       forOperator,
-      argument: command.motionArgument
+      argument: command.motionArgument,
+      search: this.lastSearch
     };
   }
 
@@ -357,7 +453,7 @@ export class VimEngine {
     if (!operator) return this.unchanged(state);
 
     const target = this.resolveTarget(state, command, buffer, cursor, operator);
-    if (!target) return this.unchanged(state);
+    if (!target) return this.failedMotion(state, command);
 
     if (isIndentOperator(operator)) return this.runIndent(state, command, buffer, target, operator);
 
@@ -378,7 +474,7 @@ export class VimEngine {
         remapPending: [],
         desiredColumn: outcome.cursor.character,
         visualAnchor: null,
-        commandLine: ''
+        commandLine: null
       },
       actions,
       handled: true
@@ -407,7 +503,7 @@ export class VimEngine {
     const position = pos(startLine, 0);
 
     return {
-      state: { mode: 'normal', pendingKeys: '', remapPending: [], desiredColumn: 0, visualAnchor: null, commandLine: '' },
+      state: { mode: 'normal', pendingKeys: '', remapPending: [], desiredColumn: 0, visualAnchor: null, commandLine: null },
       actions: [
         {
           type: 'indent',
@@ -532,7 +628,7 @@ export class VimEngine {
         return this.toggleCase(state, command, buffer, cursor);
       case 'u':
         return {
-          state: { ...state, mode: 'normal', visualAnchor: null, commandLine: '' },
+          state: { ...state, mode: 'normal', visualAnchor: null, commandLine: null },
           actions: [{ type: 'executeCommand', command: 'undo' }, { type: 'setMode', mode: 'normal' }],
           handled: true
         };
@@ -547,7 +643,7 @@ export class VimEngine {
 
   private enterInsert(state: VimState, position: Position): EngineResult {
     return {
-      state: { mode: 'insert', pendingKeys: '', remapPending: [], desiredColumn: position.character, visualAnchor: null, commandLine: '' },
+      state: { mode: 'insert', pendingKeys: '', remapPending: [], desiredColumn: position.character, visualAnchor: null, commandLine: null },
       actions: [
         { type: 'setCursor', position, toFirstNonBlank: false },
         { type: 'setMode', mode: 'insert' },
@@ -570,7 +666,7 @@ export class VimEngine {
     if (where === 'below') {
       const at = pos(cursor.line, lineLength(buffer, cursor.line));
       return {
-        state: { mode: 'insert', pendingKeys: '', remapPending: [], desiredColumn: indent.length, visualAnchor: null, commandLine: '' },
+        state: { mode: 'insert', pendingKeys: '', remapPending: [], desiredColumn: indent.length, visualAnchor: null, commandLine: null },
         actions: [
           { type: 'edit', range: { start: at, end: at }, text: buffer.eol + indent },
           { type: 'setCursor', position: pos(cursor.line + 1, indent.length), toFirstNonBlank: false },
@@ -583,7 +679,7 @@ export class VimEngine {
 
     const at = pos(cursor.line, 0);
     return {
-      state: { mode: 'insert', pendingKeys: '', remapPending: [], desiredColumn: indent.length, visualAnchor: null, commandLine: '' },
+      state: { mode: 'insert', pendingKeys: '', remapPending: [], desiredColumn: indent.length, visualAnchor: null, commandLine: null },
       actions: [
         { type: 'edit', range: { start: at, end: at }, text: indent + buffer.eol },
         { type: 'setCursor', position: pos(cursor.line, indent.length), toFirstNonBlank: false },
@@ -613,7 +709,7 @@ export class VimEngine {
     });
 
     return {
-      state: { ...state, mode: 'normal', desiredColumn: start, visualAnchor: null, commandLine: '' },
+      state: { ...state, mode: 'normal', desiredColumn: start, visualAnchor: null, commandLine: null },
       actions: [
         { type: 'edit', range, text: '' },
         { type: 'setCursor', position: pos(cursor.line, start), toFirstNonBlank: false },
@@ -636,7 +732,7 @@ export class VimEngine {
     });
 
     return {
-      state: { mode: 'insert', pendingKeys: '', remapPending: [], desiredColumn: cursor.character, visualAnchor: null, commandLine: '' },
+      state: { mode: 'insert', pendingKeys: '', remapPending: [], desiredColumn: cursor.character, visualAnchor: null, commandLine: null },
       actions: [
         { type: 'edit', range, text: '' },
         { type: 'setCursor', position: cursor, toFirstNonBlank: false },
@@ -661,7 +757,7 @@ export class VimEngine {
 
     const outcome = paste(buffer, cursor, content, command.count, before);
     return {
-      state: { ...state, mode: 'normal', desiredColumn: outcome.cursor.character, visualAnchor: null, commandLine: '' },
+      state: { ...state, mode: 'normal', desiredColumn: outcome.cursor.character, visualAnchor: null, commandLine: null },
       actions: [
         { type: 'edit', range: outcome.edit.range, text: outcome.edit.text },
         { type: 'setCursor', position: outcome.cursor, toFirstNonBlank: outcome.toFirstNonBlank },
@@ -692,7 +788,7 @@ export class VimEngine {
     const text = content.text.split(/\r\n|\n/).join(buffer.eol);
 
     return {
-      state: { mode: 'normal', pendingKeys: '', remapPending: [], desiredColumn: range.start.character, visualAnchor: null, commandLine: '' },
+      state: { mode: 'normal', pendingKeys: '', remapPending: [], desiredColumn: range.start.character, visualAnchor: null, commandLine: null },
       actions: [
         { type: 'edit', range, text },
         { type: 'setCursor', position: range.start, toFirstNonBlank: false },
@@ -715,7 +811,7 @@ export class VimEngine {
     const position = pos(cursor.line, cursor.character + command.count - 1);
 
     return {
-      state: { ...state, mode: 'normal', desiredColumn: position.character, visualAnchor: null, commandLine: '' },
+      state: { ...state, mode: 'normal', desiredColumn: position.character, visualAnchor: null, commandLine: null },
       actions: [
         { type: 'edit', range, text: replacement.repeat(command.count) },
         { type: 'setCursor', position, toFirstNonBlank: false },
@@ -744,7 +840,7 @@ export class VimEngine {
     const position = pos(cursor.line, caret);
 
     return {
-      state: { ...state, mode: 'normal', desiredColumn: caret, visualAnchor: null, commandLine: '' },
+      state: { ...state, mode: 'normal', desiredColumn: caret, visualAnchor: null, commandLine: null },
       actions: [
         { type: 'edit', range, text: joined },
         { type: 'setCursor', position, toFirstNonBlank: false },
@@ -766,7 +862,7 @@ export class VimEngine {
     const position = pos(cursor.line, Math.min(end, maxColumn(buffer, cursor.line, 'normal')));
 
     return {
-      state: { ...state, mode: 'normal', desiredColumn: position.character, visualAnchor: null, commandLine: '' },
+      state: { ...state, mode: 'normal', desiredColumn: position.character, visualAnchor: null, commandLine: null },
       actions: [
         { type: 'edit', range: { start: cursor, end: pos(cursor.line, end) }, text: flipped },
         { type: 'setCursor', position, toFirstNonBlank: false },

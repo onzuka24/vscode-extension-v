@@ -1,6 +1,7 @@
 import { TextBuffer, clampLine, lastLine, lineLength } from './buffer';
 import { firstNonBlank, maxColumn } from './cursor';
 import { charAt, classOf, isEmptyLine, nextPosition, previousPosition } from './scan';
+import { SearchState, findMatch } from './search';
 import { Mode, Position, pos, positionsEqual } from './types';
 
 /**
@@ -27,6 +28,12 @@ export interface MotionContext {
   /** Operators may address the column past the last character; plain motions may not. */
   readonly forOperator: boolean;
   readonly argument: string | undefined;
+  /**
+   * The search to repeat, which `n` `N` `*` `#` are. It is passed in rather than
+   * held here because it outlives a single keystroke: the engine owns it, and
+   * motions stay pure functions of their context.
+   */
+  readonly search: SearchState | null;
 }
 
 export interface Motion {
@@ -41,6 +48,28 @@ export interface Motion {
   /** Null means the motion cannot move, which aborts any pending operator. */
   exec(context: MotionContext): Position | null;
 }
+
+/** `n` repeats the last search, `N` repeats it the other way round. */
+function repeatSearch(context: MotionContext, reverse: boolean): Position | null {
+  const { search } = context;
+  if (!search) return null;
+
+  const direction = reverse ? flip(search.direction) : search.direction;
+  return findMatch(context.buffer, context.from, { pattern: search.pattern, direction }, context.count);
+}
+
+function flip(direction: SearchState['direction']): SearchState['direction'] {
+  return direction === 'forward' ? 'backward' : 'forward';
+}
+
+/** Motions that need a previous search, so the engine can say why nothing moved. */
+export const SEARCH_MOTIONS: ReadonlySet<string> = new Set(['n', 'N', '*', '#']);
+
+/** `*` and `#` search for the word under the cursor rather than a typed pattern. */
+export const WORD_SEARCH_MOTIONS: Readonly<Record<string, SearchState['direction']>> = {
+  '*': 'forward',
+  '#': 'backward'
+};
 
 /** Start of the next word. Vim treats an empty line as a word of its own. */
 function wordForward(buffer: TextBuffer, from: Position, big: boolean): Position {
@@ -217,6 +246,12 @@ export const MOTIONS: Readonly<Record<string, Motion>> = {
   },
   '{': { kind: 'exclusive', exec: ({ buffer, from, count }) => paragraph(buffer, from, count, -1) },
   '}': { kind: 'exclusive', exec: ({ buffer, from, count }) => paragraph(buffer, from, count, 1) },
+  n: { kind: 'exclusive', exec: context => repeatSearch(context, false) },
+  N: { kind: 'exclusive', exec: context => repeatSearch(context, true) },
+  // `*` and `#` are `n` over a search the engine has just set to the word under
+  // the cursor, so the direction is already baked into `context.search`.
+  '*': { kind: 'exclusive', exec: context => repeatSearch(context, false) },
+  '#': { kind: 'exclusive', exec: context => repeatSearch(context, false) },
   f: {
     kind: 'inclusive',
     needsArgument: true,
