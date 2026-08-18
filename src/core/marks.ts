@@ -18,6 +18,11 @@ export interface MarkReader {
   get(name: string): Position | undefined;
 }
 
+export interface MarkEntry {
+  readonly name: string;
+  readonly position: Position;
+}
+
 /** Where `` `` `` and `''` go: the position held before the last jump. */
 export const JUMP_MARK = '`';
 
@@ -48,6 +53,20 @@ export class MarkStore {
   public get(bufferId: string, name: string): Position | undefined {
     const key = normalizeMarkName(name);
     return key === null ? undefined : this.byBuffer.get(bufferId)?.get(key);
+  }
+
+  /**
+   * Every mark set in a buffer, sorted by name. The jump mark is included; it is
+   * up to the caller to decide whether something that moves on every `G` is worth
+   * showing.
+   */
+  public list(bufferId: string): MarkEntry[] {
+    const marks = this.byBuffer.get(bufferId);
+    if (!marks) return [];
+
+    return [...marks.entries()]
+      .map(([name, position]) => ({ name, position }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   /** A view bound to one buffer, which is what motions are handed. */

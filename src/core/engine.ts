@@ -17,7 +17,7 @@ import { parseExCommand } from './excommands';
 import { SearchState, SearchStyle, compilePattern, wordSearchAt } from './search';
 import { SPECIAL_KEYS, describeKeys, isSpecialKey } from './keys';
 import { Command, awaitsLiteralKey, parse } from './parser';
-import { JUMP_MARK, MarkStore } from './marks';
+import { JUMP_MARK, MarkEntry, MarkStore } from './marks';
 import { RegisterStore } from './registers';
 import { RemapTable } from './remap';
 import { resolveTextObject } from './textobjects';
@@ -127,6 +127,11 @@ export class VimEngine {
 
   public setSearchStyle(style: SearchStyle): void {
     this.searchStyle = style;
+  }
+
+  /** The marks set in one buffer, for whatever wants to draw them. */
+  public listMarks(bufferId: string): MarkEntry[] {
+    return this.marks.list(bufferId);
   }
 
   public setRemaps(table: RemapTable): void {

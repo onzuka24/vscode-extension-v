@@ -72,9 +72,17 @@
           "default": true,
           "description": "Show the current mode in the status bar."
         },
+        "vimLike.showMarks": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "マークを付けた行の行番号の横に、マーク名 (`a` `b` …) を表示します。マークを使っていなければ何も出ません。"
+        },
         "vimLike.search": {
           "type": "string",
-          "enum": ["statusBar", "editorFind"],
+          "enum": [
+            "statusBar",
+            "editorFind"
+          ],
           "default": "statusBar",
           "enumDescriptions": [
             "この拡張機能の検索。ステータスバーに入力し、d/foo のようにオペレータと組み合わせられます。",
@@ -93,22 +101,30 @@
           "markdownDescription": "Normal モードのキー割り当てを置き換えます (`nnoremap` 相当)。置き換えた結果はさらに置き換えられません。\n\n```json\n[\n  { \"before\": [\"H\"], \"after\": [\"^\"] },\n  { \"before\": [\"J\"], \"after\": [\"1\", \"0\", \"j\"] },\n  { \"before\": [\"U\"], \"after\": [\"<C-r>\"] },\n  { \"before\": [\"<leader>\", \"s\"], \"after\": [\":\", \"w\", \"<CR>\"] },\n  { \"before\": [\"g\", \"n\"], \"commands\": [\"workbench.view.explorer\"] }\n]\n```",
           "items": {
             "type": "object",
-            "required": ["before"],
+            "required": [
+              "before"
+            ],
             "additionalProperties": false,
             "properties": {
               "before": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "置き換えるキー列。1要素が1キーです。`<Esc>` `<C-r>` `<CR>` `<BS>` が使えます。"
               },
               "after": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "置き換え後のキー列。after か commands のどちらか一方を指定します。"
               },
               "commands": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "実行する VS Code のコマンド ID。after か commands のどちらか一方を指定します。"
               }
             }
@@ -120,12 +136,29 @@
           "markdownDescription": "Visual モードと Visual Line モードのキー割り当てを置き換えます (`vnoremap` 相当)。書き方は `vimLike.normalModeKeyBindings` と同じです。",
           "items": {
             "type": "object",
-            "required": ["before"],
+            "required": [
+              "before"
+            ],
             "additionalProperties": false,
             "properties": {
-              "before": { "type": "array", "items": { "type": "string" } },
-              "after": { "type": "array", "items": { "type": "string" } },
-              "commands": { "type": "array", "items": { "type": "string" } }
+              "before": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "after": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "commands": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
             }
           }
         }

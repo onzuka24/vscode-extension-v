@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { applyActions, readCursor } from './adapter/apply';
 import { DocumentBuffer } from './adapter/buffer';
+import { MarkDecorations } from './adapter/markDecorations';
 import { ModeStatusBar } from './adapter/statusBar';
 import { EngineResult, VimEngine, VimState, createState, describePending, withExternalCursor } from './core/engine';
 import { DEFAULT_LEADER, SPECIAL_KEYS } from './core/keys';
@@ -10,6 +11,7 @@ import { Mode } from './core/types';
 const engine = new VimEngine();
 let state: VimState = createState('normal');
 let statusBar: ModeStatusBar;
+let markDecorations: MarkDecorations;
 let enabled = true;
 let leader: string = DEFAULT_LEADER;
 
@@ -36,6 +38,8 @@ let queue: Promise<void> = Promise.resolve();
 export function activate(context: vscode.ExtensionContext): void {
   statusBar = new ModeStatusBar();
   context.subscriptions.push(statusBar);
+  markDecorations = new MarkDecorations();
+  context.subscriptions.push(markDecorations);
 
   enabled = configuration().get('enabled', true);
   loadSearchStyle();
@@ -322,6 +326,14 @@ async function refresh(): Promise<void> {
 
   const editor = vscode.window.activeTextEditor;
   if (!editor) return;
+
+  // Cheap on a keystroke that changed nothing: the renderer compares what it
+  // last drew and returns before touching the editor.
+  markDecorations.render(
+    editor,
+    engine.listMarks(editor.document.uri.toString()),
+    active && configuration().get('showMarks', true)
+  );
 
   // A block caret is how Normal mode announces itself. Only assign when it
   // actually differs — this runs on every keystroke.
