@@ -27,6 +27,8 @@ export async function applyActions(
   for (const action of actions) {
     if (action.type === 'executeCommand') {
       await vscode.commands.executeCommand(action.command);
+    } else if (action.type === 'indent') {
+      await applyIndent(editor, action);
     }
   }
 
@@ -59,6 +61,30 @@ export async function applyActions(
 
 function isEdit(action: Action): action is Extract<Action, { type: 'edit' }> {
   return action.type === 'edit';
+}
+
+/**
+ * `>` and `<` are handed to VS Code so that the step width, tabs versus spaces
+ * and the language's own settings decide how far the lines move — none of which
+ * the core can know. The commands work on the selection, so the lines are
+ * selected first; the caret that follows in `setCursor` replaces that selection,
+ * which is also what makes Visual `>` drop the selection the way Vim does.
+ */
+async function applyIndent(
+  editor: vscode.TextEditor,
+  action: Extract<Action, { type: 'indent' }>
+): Promise<void> {
+  const last = Math.min(action.endLine, editor.document.lineCount - 1);
+  const first = Math.min(action.startLine, last);
+  editor.selection = new vscode.Selection(
+    new vscode.Position(first, 0),
+    new vscode.Position(last, editor.document.lineAt(last).text.length)
+  );
+
+  const command = action.direction === 'in' ? 'editor.action.indentLines' : 'editor.action.outdentLines';
+  for (let level = 0; level < action.levels; level++) {
+    await vscode.commands.executeCommand(command);
+  }
 }
 
 /**

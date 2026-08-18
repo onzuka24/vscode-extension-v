@@ -1,15 +1,47 @@
-import { TextBuffer, getText, lastLine, lineLength, linewiseRange, linewiseText } from './buffer';
+import { TextBuffer, clampLine, getText, lastLine, lineLength, linewiseRange, linewiseText } from './buffer';
 import { firstNonBlank, indentOf } from './cursor';
 import { MOTIONS, Motion, MotionContext } from './motions';
 import { charAt, classOf } from './scan';
 import { Mode, Position, Range, RegisterContent, comparePositions, pos } from './types';
 
-export type OperatorName = 'd' | 'c' | 'y';
+/** Operators that edit the buffer themselves and fill a register. */
+export type EditOperatorName = 'd' | 'c' | 'y';
 
-export const OPERATORS: ReadonlySet<string> = new Set<OperatorName>(['d', 'c', 'y']);
+/** Operators that only shift lines. The editor decides by how much, so these produce no edit. */
+export type IndentOperatorName = '>' | '<';
+
+export type OperatorName = EditOperatorName | IndentOperatorName;
+
+export const OPERATORS: ReadonlySet<string> = new Set<OperatorName>(['d', 'c', 'y', '>', '<']);
 
 export function isOperator(key: string): key is OperatorName {
   return OPERATORS.has(key);
+}
+
+export function isIndentOperator(operator: OperatorName): operator is IndentOperatorName {
+  return operator === '>' || operator === '<';
+}
+
+/**
+ * The lines an indent operator acts on.
+ *
+ * In Vim `>` is always linewise, even behind a characterwise motion: `>w` shifts
+ * the line the word sits on rather than the word itself. So any target is rounded
+ * out to whole lines here.
+ */
+export function targetLines(buffer: TextBuffer, target: Target): { startLine: number; endLine: number } {
+  if (target.kind === 'linewise') {
+    return {
+      startLine: Math.min(target.startLine, target.endLine),
+      endLine: clampLine(buffer, Math.max(target.startLine, target.endLine))
+    };
+  }
+
+  const { start, end } = target.range;
+  // The range end is exclusive, so one that stops at column 0 does not reach into
+  // that line — `>w` onto the next line's first word must not shift that line.
+  const last = end.character === 0 && end.line > start.line ? end.line - 1 : end.line;
+  return { startLine: start.line, endLine: clampLine(buffer, Math.max(start.line, last)) };
 }
 
 /** What an operator will act on, in the two granularities Vim distinguishes. */
@@ -64,7 +96,7 @@ function substituteForChange(motion: Motion, context: MotionContext, operator: O
 }
 
 export function applyOperator(
-  operator: OperatorName,
+  operator: EditOperatorName,
   buffer: TextBuffer,
   target: Target,
   origin: Position
@@ -76,7 +108,7 @@ export function applyOperator(
 }
 
 function applyLinewise(
-  operator: OperatorName,
+  operator: EditOperatorName,
   buffer: TextBuffer,
   rawStart: number,
   rawEnd: number,
@@ -113,7 +145,7 @@ function applyLinewise(
   };
 }
 
-function applyCharacterwise(operator: OperatorName, buffer: TextBuffer, range: Range): OperatorOutcome {
+function applyCharacterwise(operator: EditOperatorName, buffer: TextBuffer, range: Range): OperatorOutcome {
   const register: RegisterContent = { text: getText(buffer, range), kind: 'characterwise' };
 
   if (operator === 'y') {

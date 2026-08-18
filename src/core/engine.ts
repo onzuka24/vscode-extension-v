@@ -2,7 +2,16 @@ import { Action } from './actions';
 import { TextBuffer, clampLine, lastLine, lineLength, linewiseRange, linewiseText } from './buffer';
 import { clampCursor, firstNonBlank, indentOf, maxColumn } from './cursor';
 import { Motion, MotionContext, lookupMotion } from './motions';
-import { OperatorName, Target, applyOperator, paste, resolveMotionTarget } from './operators';
+import {
+  IndentOperatorName,
+  OperatorName,
+  Target,
+  applyOperator,
+  isIndentOperator,
+  paste,
+  resolveMotionTarget,
+  targetLines
+} from './operators';
 import { SPECIAL_KEYS, describeKeys, isSpecialKey } from './keys';
 import { Command, awaitsLiteralKey, parse } from './parser';
 import { RegisterStore } from './registers';
@@ -254,6 +263,8 @@ export class VimEngine {
     const target = this.resolveTarget(state, command, buffer, cursor, operator);
     if (!target) return this.unchanged(state);
 
+    if (isIndentOperator(operator)) return this.runIndent(state, command, buffer, target, operator);
+
     const origin = isVisual(state.mode) ? startOf(target, cursor) : cursor;
     const outcome = applyOperator(operator, buffer, target, origin);
     this.registers.write(command.register, outcome.register);
@@ -273,6 +284,45 @@ export class VimEngine {
         visualAnchor: null
       },
       actions,
+      handled: true
+    };
+  }
+
+  /**
+   * `>` and `<`. No edit and no register: the lines to move are named and the
+   * editor performs the shift, so that the step width and tabs-versus-spaces
+   * follow VS Code's settings for that language rather than a number chosen here.
+   *
+   * The count means different things on the two sides, as in Vim. In Normal mode
+   * it has already been spent on the extent (`3>>` is three lines, `>2j` is
+   * three lines); in Visual mode the extent is the selection, so the count is
+   * how many steps to move it (`3>`). Vim also drops the selection afterwards,
+   * and the caret lands on the first non-blank of the topmost line.
+   */
+  private runIndent(
+    state: VimState,
+    command: Command,
+    buffer: TextBuffer,
+    target: Target,
+    operator: IndentOperatorName
+  ): EngineResult {
+    const { startLine, endLine } = targetLines(buffer, target);
+    const position = pos(startLine, 0);
+
+    return {
+      state: { mode: 'normal', pendingKeys: '', remapPending: [], desiredColumn: 0, visualAnchor: null },
+      actions: [
+        {
+          type: 'indent',
+          startLine,
+          endLine,
+          direction: operator === '>' ? 'in' : 'out',
+          levels: isVisual(state.mode) ? command.count : 1
+        },
+        { type: 'setCursor', position, toFirstNonBlank: true },
+        { type: 'setMode', mode: 'normal' },
+        { type: 'reveal' }
+      ],
       handled: true
     };
   }
