@@ -72,6 +72,16 @@
           "default": true,
           "description": "Show the current mode in the status bar."
         },
+        "vimLike.search": {
+          "type": "string",
+          "enum": ["statusBar", "editorFind"],
+          "default": "statusBar",
+          "enumDescriptions": [
+            "この拡張機能の検索。ステータスバーに入力し、d/foo のようにオペレータと組み合わせられます。",
+            "VS Code の検索バー。履歴・正規表現の切り替え・件数表示が使えますが、オペレータとは組み合わせられません。"
+          ],
+          "markdownDescription": "`/` `?` `n` `N` `*` `#` をどちらの検索で動かすかです。\n\n- `statusBar` — この拡張機能の検索。パターンはステータスバーに出て、`d/foo<CR>` や `v/foo<CR>` のようにオペレータや Visual モードと組み合わせられます。パターンは JavaScript の正規表現です。\n- `editorFind` — VS Code の検索バー (`actions.find`) を開きます。履歴・大文字小文字・単語単位・正規表現の切り替え・一致件数の表示がそのまま使えます。打鍵が検索バーへ行くため、オペレータとは組み合わせられません。"
+        },
         "vimLike.leader": {
           "type": "string",
           "default": " ",

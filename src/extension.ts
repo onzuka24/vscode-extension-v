@@ -38,6 +38,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(statusBar);
 
   enabled = configuration().get('enabled', true);
+  loadSearchStyle();
   state = createState(configuration().get('startInNormalMode', true) ? 'normal' : 'insert');
   loadRemaps();
 
@@ -234,6 +235,7 @@ function registerListeners(context: vscode.ExtensionContext): void {
     vscode.workspace.onDidChangeConfiguration(event => {
       if (!event.affectsConfiguration('vimLike')) return;
       enabled = configuration().get('enabled', true);
+  loadSearchStyle();
       loadRemaps();
       void refresh();
     })
@@ -267,6 +269,12 @@ function loadRemaps(): void {
       `Vim Like: 設定のキー割り当てを一部読み込めませんでした。 ${problems.join(' / ')}`
     );
   }
+}
+
+/** `/` either opens our own line in the status bar or VS Code's find widget. */
+function loadSearchStyle(): void {
+  const style = configuration().get<string>('search', 'statusBar');
+  engine.setSearchStyle(style === 'editorFind' ? 'editorFind' : 'statusBar');
 }
 
 function withActiveEditor<T>(action: (editor: vscode.TextEditor) => T): T | undefined {
