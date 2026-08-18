@@ -1,6 +1,7 @@
-import { TextBuffer, clampLine, lastLine, lineLength } from './buffer';
+import { TextBuffer, clampLine, clampPosition, lastLine, lineLength } from './buffer';
 import { firstNonBlank, maxColumn } from './cursor';
 import { charAt, classOf, isEmptyLine, nextPosition, previousPosition } from './scan';
+import { MarkReader } from './marks';
 import { SearchState, findMatch } from './search';
 import { matchingBracket } from './textobjects';
 import { Mode, Position, pos, positionsEqual } from './types';
@@ -35,6 +36,8 @@ export interface MotionContext {
    * motions stay pure functions of their context.
    */
   readonly search: SearchState | null;
+  /** Marks for the current buffer, for the same reason the search state is here. */
+  readonly marks: MarkReader | null;
 }
 
 export interface Motion {
@@ -46,6 +49,12 @@ export interface Motion {
   readonly stopsAtLineEndForOperator?: boolean;
   /** Motion to substitute under `c`, so that `cw` behaves like `ce` on a non-blank. */
   readonly changeActsAs?: string;
+  /**
+   * Whether this counts as a jump. Before one runs, the caret's position is
+   * stored so that `` `` `` and `''` can return to it — Vim's rule that a big
+   * movement leaves a breadcrumb, while `h` or `j` do not.
+   */
+  readonly isJump?: boolean;
   /** Null means the motion cannot move, which aborts any pending operator. */
   exec(context: MotionContext): Position | null;
 }
@@ -232,6 +241,7 @@ export const MOTIONS: Readonly<Record<string, Motion>> = {
     }
   },
   G: {
+    isJump: true,
     kind: 'linewise',
     exec: ({ buffer, count, hasCount }) => {
       const line = hasCount ? clampLine(buffer, count - 1) : lastLine(buffer);
@@ -239,22 +249,23 @@ export const MOTIONS: Readonly<Record<string, Motion>> = {
     }
   },
   gg: {
+    isJump: true,
     kind: 'linewise',
     exec: ({ buffer, count, hasCount }) => {
       const line = hasCount ? clampLine(buffer, count - 1) : 0;
       return pos(line, firstNonBlank(buffer, line));
     }
   },
-  '{': { kind: 'exclusive', exec: ({ buffer, from, count }) => paragraph(buffer, from, count, -1) },
-  '}': { kind: 'exclusive', exec: ({ buffer, from, count }) => paragraph(buffer, from, count, 1) },
+  '{': { kind: 'exclusive', isJump: true, exec: ({ buffer, from, count }) => paragraph(buffer, from, count, -1) },
+  '}': { kind: 'exclusive', isJump: true, exec: ({ buffer, from, count }) => paragraph(buffer, from, count, 1) },
   // `%` is inclusive so that `d%` takes both brackets and everything between.
-  '%': { kind: 'inclusive', exec: ({ buffer, from }) => matchingBracket(buffer, from) },
-  n: { kind: 'exclusive', exec: context => repeatSearch(context, false) },
-  N: { kind: 'exclusive', exec: context => repeatSearch(context, true) },
+  '%': { kind: 'inclusive', isJump: true, exec: ({ buffer, from }) => matchingBracket(buffer, from) },
+  n: { kind: 'exclusive', isJump: true, exec: context => repeatSearch(context, false) },
+  N: { kind: 'exclusive', isJump: true, exec: context => repeatSearch(context, true) },
   // `*` and `#` are `n` over a search the engine has just set to the word under
   // the cursor, so the direction is already baked into `context.search`.
-  '*': { kind: 'exclusive', exec: context => repeatSearch(context, false) },
-  '#': { kind: 'exclusive', exec: context => repeatSearch(context, false) },
+  '*': { kind: 'exclusive', isJump: true, exec: context => repeatSearch(context, false) },
+  '#': { kind: 'exclusive', isJump: true, exec: context => repeatSearch(context, false) },
   f: {
     kind: 'inclusive',
     needsArgument: true,
@@ -278,8 +289,29 @@ export const MOTIONS: Readonly<Record<string, Motion>> = {
     needsArgument: true,
     exec: ({ buffer, from, count, argument }) =>
       argument === undefined ? null : findInLine(buffer, from, argument, count, 'backward', true)
-  }
+  },
+  // `` `a `` goes to the marked character, `'a` to the start of its line. Both
+  // take the mark's name as their argument, exactly as `f` takes a character.
+  '`': { kind: 'exclusive', needsArgument: true, isJump: true, exec: markMotion(false) },
+  "'": { kind: 'linewise', needsArgument: true, isJump: true, exec: markMotion(true) }
 };
+
+/**
+ * A mark may point past the end of a document that has since been edited, so the
+ * stored position is clamped rather than trusted.
+ */
+function markMotion(toLineStart: boolean): (context: MotionContext) => Position | null {
+  return ({ buffer, marks, argument }) => {
+    if (!marks || argument === undefined) return null;
+
+    const at = marks.get(argument);
+    if (!at) return null;
+
+    if (!toLineStart) return clampPosition(buffer, at);
+    const line = clampLine(buffer, at.line);
+    return pos(line, firstNonBlank(buffer, line));
+  };
+}
 
 /** True while `keys` is a strict prefix of a longer motion, e.g. `g` on the way to `gg`. */
 export function isMotionPrefix(keys: string): boolean {

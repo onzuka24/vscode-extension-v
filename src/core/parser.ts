@@ -55,7 +55,7 @@ const NORMAL_ACTIONS = new Set([
 /** Visual-mode commands. `d`/`c`/`y` are handled as operators over the selection. */
 const VISUAL_ACTIONS = new Set(['x', 's', 'p', 'P', 'o', 'v', 'V', 'J', '~']);
 
-const ACTIONS_WITH_ARGUMENT = new Set(['r']);
+const ACTIONS_WITH_ARGUMENT = new Set(['r', 'm']);
 
 const TEXT_OBJECT_PREFIXES = new Set(['i', 'a']);
 

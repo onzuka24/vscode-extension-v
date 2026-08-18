@@ -17,6 +17,7 @@ import { parseExCommand } from './excommands';
 import { SearchState, SearchStyle, compilePattern, wordSearchAt } from './search';
 import { SPECIAL_KEYS, describeKeys, isSpecialKey } from './keys';
 import { Command, awaitsLiteralKey, parse } from './parser';
+import { JUMP_MARK, MarkStore } from './marks';
 import { RegisterStore } from './registers';
 import { RemapTable } from './remap';
 import { resolveTextObject } from './textobjects';
@@ -108,6 +109,7 @@ const OPERATOR_SHORTHAND: Readonly<Record<string, Partial<Command>>> = {
 
 export class VimEngine {
   private readonly registers = new RegisterStore();
+  private readonly marks = new MarkStore();
   private remaps: RemapTable = RemapTable.empty();
   /** The pattern `n`, `N` and a bare `/` repeat. Outlives any single keystroke. */
   private lastSearch: SearchState | null = null;
@@ -551,6 +553,10 @@ export class VimEngine {
     const destination = motion.exec(this.motionContext(state, command, buffer, cursor, false));
     if (!destination) return this.failedMotion(state, command);
 
+    // Leave the breadcrumb only once the motion is known to succeed, so a failed
+    // `` `x `` does not overwrite the position it was going to return to.
+    if (motion.isJump) this.marks.set(buffer.id, JUMP_MARK, cursor);
+
     const position = clampCursor(buffer, destination, state.mode);
     const desiredColumn = nextDesiredColumn(motion, state.desiredColumn, position);
 
@@ -587,7 +593,8 @@ export class VimEngine {
       desiredColumn: state.desiredColumn,
       forOperator,
       argument: command.motionArgument,
-      search: this.lastSearch
+      search: this.lastSearch,
+      marks: this.marks.reader(buffer.id)
     };
   }
 
@@ -765,6 +772,8 @@ export class VimEngine {
         return this.pasteRegister(state, command, buffer, cursor, false);
       case 'P':
         return this.pasteRegister(state, command, buffer, cursor, true);
+      case 'm':
+        return this.setMark(state, command, buffer, cursor);
       case 'r':
         return this.replaceCharacters(state, command, buffer, cursor);
       case 'J':
@@ -944,6 +953,24 @@ export class VimEngine {
       ],
       handled: true
     };
+  }
+
+  /**
+   * `m{a-z}` remembers the caret. Nothing is edited and nothing moves, so the
+   * only visible effect is the message when the name is not a valid mark.
+   */
+  private setMark(state: VimState, command: Command, buffer: TextBuffer, cursor: Position): EngineResult {
+    const name = command.actionArgument;
+    if (name === undefined) return this.unchanged(state);
+
+    if (!this.marks.set(buffer.id, name, cursor)) {
+      return {
+        state: { ...state, pendingKeys: '', remapPending: [] },
+        actions: [{ type: 'notify', message: `E191: Argument must be a letter: ${name}` }],
+        handled: true
+      };
+    }
+    return this.unchanged(state);
   }
 
   private replaceCharacters(state: VimState, command: Command, buffer: TextBuffer, cursor: Position): EngineResult {
