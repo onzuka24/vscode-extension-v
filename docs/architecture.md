@@ -19,6 +19,7 @@ vscode-extension-v/
 │   │   ├── operators.ts       オペレータ（d c y）と貼り付けの範囲計算
 │   │   ├── registers.ts       レジスタの保管庫
 │   │   ├── parser.ts          キー列 → コマンドオブジェクト
+│   │   ├── excommands.ts      `:` で受け付ける Ex コマンドの表
 │   │   ├── actions.ts         エンジンが返す副作用の記述（データ）
 │   │   └── engine.ts          上記を束ねる。キーを受けて Action を返す
 │   │
@@ -130,6 +131,7 @@ sequenceDiagram
 | `setSelection` | Visual の選択範囲を張る |
 | `executeCommand` | VS Code のコマンドを呼ぶ（`undo` の委譲） |
 | `indent` | 行の字下げを VS Code に頼む（`>` `<`） |
+| `notify` | 短い知らせを出す（知らない Ex コマンドなど） |
 | `reveal` | カーソルを画面内へスクロール |
 
 `indent` だけ、どの行をどちら向きに何段動かすかしか書きません。下げ幅・タブかスペースか・
@@ -159,8 +161,8 @@ flowchart TD
     Q4 -- はい --> E["engine.handleKey へ"]
 ```
 
-Escape・`Ctrl` 系・矢印キーは `type` には流れてこないため、それらだけ `package.json` の
-`keybindings` で受けます。その `when` 句には必ず `editorTextFocus` を伴わせ、Escape については
+Escape・`Ctrl` 系・矢印キー、そしてコマンドラインモードの Enter と Backspace は `type` に
+流れてこないため、それらだけ `package.json` の `keybindings` で受けます。その `when` 句には必ず `editorTextFocus` を伴わせ、Escape については
 サジェストウィジェットなどが開いているときは譲るよう条件を絞っています。
 
 ## リマップ — パーサの手前に置く変換層

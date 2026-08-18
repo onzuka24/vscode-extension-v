@@ -3,7 +3,7 @@ import { applyActions, readCursor } from './adapter/apply';
 import { DocumentBuffer } from './adapter/buffer';
 import { ModeStatusBar } from './adapter/statusBar';
 import { EngineResult, VimEngine, VimState, createState, describePending, withExternalCursor } from './core/engine';
-import { DEFAULT_LEADER } from './core/keys';
+import { DEFAULT_LEADER, SPECIAL_KEYS } from './core/keys';
 import { RemapRule, RemapTable } from './core/remap';
 import { Mode } from './core/types';
 
@@ -194,6 +194,18 @@ function registerCommands(context: vscode.ExtensionContext): void {
   );
 
   register('vimLike.redo', () => vscode.commands.executeCommand('redo'));
+
+  // Enter and Backspace never arrive through `type`, so command-line mode gets
+  // them the way Escape is already delivered: as a keybinding that feeds the
+  // matching token back into the engine.
+  for (const [id, key] of [
+    ['vimLike.commandLineAccept', SPECIAL_KEYS.enter],
+    ['vimLike.commandLineBackspace', SPECIAL_KEYS.backspace]
+  ] as const) {
+    register(id, () =>
+      withActiveEditor(editor => enqueue(() => feed(editor, key, true)))
+    );
+  }
 
   register('vimLike.toggleEnabled', async () => {
     enabled = !enabled;

@@ -44,6 +44,14 @@
       {
         "command": "vimLike.toggleEnabled",
         "title": "Vim Like: Toggle Vim Mode"
+      },
+      {
+        "command": "vimLike.commandLineAccept",
+        "title": "Vim Like: Run the Command Line"
+      },
+      {
+        "command": "vimLike.commandLineBackspace",
+        "title": "Vim Like: Delete Back in the Command Line"
       }
     ],
     "configuration": {
@@ -72,7 +80,7 @@
         "vimLike.normalModeKeyBindings": {
           "type": "array",
           "default": [],
-          "markdownDescription": "Normal モードのキー割り当てを置き換えます (`nnoremap` 相当)。置き換えた結果はさらに置き換えられません。\n\n```json\n[\n  { \"before\": [\"H\"], \"after\": [\"^\"] },\n  { \"before\": [\"J\"], \"after\": [\"1\", \"0\", \"j\"] },\n  { \"before\": [\"U\"], \"after\": [\"<C-r>\"] },\n  { \"before\": [\"g\", \"n\"], \"commands\": [\"workbench.view.explorer\"] }\n]\n```",
+          "markdownDescription": "Normal モードのキー割り当てを置き換えます (`nnoremap` 相当)。置き換えた結果はさらに置き換えられません。\n\n```json\n[\n  { \"before\": [\"H\"], \"after\": [\"^\"] },\n  { \"before\": [\"J\"], \"after\": [\"1\", \"0\", \"j\"] },\n  { \"before\": [\"U\"], \"after\": [\"<C-r>\"] },\n  { \"before\": [\"<leader>\", \"s\"], \"after\": [\":\", \"w\", \"<CR>\"] },\n  { \"before\": [\"g\", \"n\"], \"commands\": [\"workbench.view.explorer\"] }\n]\n```",
           "items": {
             "type": "object",
             "required": ["before"],
@@ -81,7 +89,7 @@
               "before": {
                 "type": "array",
                 "items": { "type": "string" },
-                "description": "置き換えるキー列。1要素が1キーです。`<Esc>` と `<C-r>` が使えます。"
+                "description": "置き換えるキー列。1要素が1キーです。`<Esc>` `<C-r>` `<CR>` `<BS>` が使えます。"
               },
               "after": {
                 "type": "array",
@@ -128,6 +136,16 @@
         "command": "vimLike.redo",
         "key": "ctrl+r",
         "when": "vimLike.active && vimLike.mode != insert && editorTextFocus"
+      },
+      {
+        "command": "vimLike.commandLineAccept",
+        "key": "enter",
+        "when": "vimLike.active && vimLike.mode == command && editorTextFocus"
+      },
+      {
+        "command": "vimLike.commandLineBackspace",
+        "key": "backspace",
+        "when": "vimLike.active && vimLike.mode == command && editorTextFocus"
       },
       {
         "command": "workbench.action.navigateLeft",

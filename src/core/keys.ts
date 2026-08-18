@@ -11,7 +11,11 @@
 /** Keys that a remap may expand to but that the parser never sees. */
 export const SPECIAL_KEYS = {
   escape: '<Esc>',
-  redo: '<C-r>'
+  redo: '<C-r>',
+  /** Runs the command line. Only meaningful in command-line mode. */
+  enter: '<CR>',
+  /** Rubs out the last character of the command line. */
+  backspace: '<BS>'
 } as const;
 
 export type SpecialKey = (typeof SPECIAL_KEYS)[keyof typeof SPECIAL_KEYS];
@@ -28,6 +32,12 @@ const ALIASES: Readonly<Record<string, string>> = {
   escape: SPECIAL_KEYS.escape,
   'c-r': SPECIAL_KEYS.redo,
   'ctrl-r': SPECIAL_KEYS.redo,
+  // `<CR>` is what makes `nnoremap <leader>s :w<enter>` expressible as a remap.
+  cr: SPECIAL_KEYS.enter,
+  enter: SPECIAL_KEYS.enter,
+  return: SPECIAL_KEYS.enter,
+  bs: SPECIAL_KEYS.backspace,
+  backspace: SPECIAL_KEYS.backspace,
   space: SPACE
 };
 

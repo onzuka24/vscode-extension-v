@@ -30,4 +30,10 @@ export type Action =
       /** How many steps. Visual mode's count means levels, as in Vim's `3>`. */
       readonly levels: number;
     }
+  /**
+   * Something to tell the user, such as an Ex command that does not exist. Shown
+   * transiently rather than as a dialog: a typo in the command line should not
+   * cost a click to dismiss.
+   */
+  | { readonly type: 'notify'; readonly message: string }
   | { readonly type: 'reveal' };
