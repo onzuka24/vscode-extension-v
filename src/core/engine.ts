@@ -1,5 +1,5 @@
 import { Action } from './actions';
-import { TextBuffer, clampLine, lastLine, lineLength, linewiseRange, linewiseText } from './buffer';
+import { TextBuffer, clampLine, getText, lastLine, lineLength, linewiseRange, linewiseText } from './buffer';
 import { clampCursor, firstNonBlank, indentOf, maxColumn } from './cursor';
 import { Motion, MotionContext, SEARCH_MOTIONS, WORD_SEARCH_MOTIONS, lookupMotion } from './motions';
 import {
@@ -7,6 +7,7 @@ import {
   OperatorName,
   Target,
   applyOperator,
+  endOfInsertedText,
   isIndentOperator,
   paste,
   resolveMotionTarget,
@@ -111,6 +112,16 @@ export class VimEngine {
   /** The pattern `n`, `N` and a bare `/` repeat. Outlives any single keystroke. */
   private lastSearch: SearchState | null = null;
   private searchStyle: SearchStyle = 'statusBar';
+
+  /**
+   * What `.` repeats: the last command that changed the buffer, together with
+   * whatever was typed if it ended in Insert mode.
+   */
+  private lastChange: LastChange | null = null;
+  /** A change that entered Insert mode and is not finished until Escape. */
+  private pendingInsert: { readonly command: Command; readonly start: Position } | null = null;
+  /** Guards `lastChange` while `.` re-runs it, so a repeat never records itself. */
+  private repeating = false;
 
   public setSearchStyle(style: SearchStyle): void {
     this.searchStyle = style;
@@ -232,6 +243,10 @@ export class VimEngine {
     // Abandoning a command line returns to where it was opened from, so that
     // Escape out of `v/foo` leaves the Visual selection as it was.
     if (state.commandLine) return this.leaveCommandLine(state);
+
+    // Whatever was typed since Insert mode began completes the change that `.`
+    // will repeat, and the buffer in hand is the only place it is written down.
+    if (state.mode === 'insert') this.finishInsert(buffer, cursor);
 
     // Leaving Insert mode steps the caret back onto the last character typed,
     // because in Normal mode the cursor sits on a character rather than after it.
@@ -426,7 +441,19 @@ export class VimEngine {
     };
   }
 
+  /**
+   * Runs one complete command and remembers it if it changed the buffer, which is
+   * what `.` repeats. Recording here rather than in each branch means a new
+   * command is repeatable the moment it exists, without anyone remembering to
+   * opt in.
+   */
   private execute(state: VimState, command: Command, buffer: TextBuffer, cursor: Position): EngineResult {
+    const result = this.dispatch(state, command, buffer, cursor);
+    this.record(command, result);
+    return result;
+  }
+
+  private dispatch(state: VimState, command: Command, buffer: TextBuffer, cursor: Position): EngineResult {
     // `*` and `#` are `n` over the word under the cursor. Setting the search here
     // rather than inside the motion keeps motions pure functions of their context.
     if (this.searchStyle === 'editorFind' && command.motion !== undefined && SEARCH_MOTIONS.has(command.motion)) {
@@ -451,6 +478,68 @@ export class VimEngine {
     if (command.textObject) return this.selectTextObject(state, command, buffer, cursor);
     if (command.motion) return this.runMotion(state, command, buffer, origin);
     return this.unchanged(state);
+  }
+
+  // ----------------------------------------------------------------- repeat
+
+  /**
+   * A change is anything that edited the buffer, shifted lines, or opened Insert
+   * mode. Yanks and motions are not changes, so `.` looks past them, as in Vim.
+   */
+  private record(command: Command, result: EngineResult): void {
+    if (this.repeating || command.action === '.') return;
+
+    const edited = result.actions.some(action => action.type === 'edit' || action.type === 'indent');
+    const entersInsert = result.state.mode === 'insert';
+    if (!edited && !entersInsert) return;
+
+    this.lastChange = { command, insertedText: '' };
+    // The change is only half-known: what gets typed before Escape belongs to it.
+    this.pendingInsert = entersInsert ? { command, start: insertStartOf(result.actions) } : null;
+  }
+
+  /**
+   * Completes a change that ended in Insert mode. The typed text is read back out
+   * of the buffer between where the insert began and where the caret ended up,
+   * which avoids having to watch every keystroke Insert mode sends straight to
+   * VS Code. Anything that moved the caret elsewhere — a click, an arrow key —
+   * leaves the two positions inconsistent, and the text is simply not recorded.
+   */
+  private finishInsert(buffer: TextBuffer, cursor: Position): void {
+    const pending = this.pendingInsert;
+    this.pendingInsert = null;
+    if (!pending || !this.lastChange) return;
+    if (comparePositions(cursor, pending.start) <= 0) return;
+
+    this.lastChange = {
+      command: pending.command,
+      insertedText: getText(buffer, { start: pending.start, end: cursor })
+    };
+  }
+
+  /**
+   * `.`. The recorded command is run again through the same path as the original,
+   * so operators, counts and text objects need no repeat-specific code. A count
+   * on the dot replaces the original one, as Vim does: `dw` then `3.` deletes
+   * three words rather than repeating the delete three times.
+   */
+  private runRepeat(state: VimState, command: Command, buffer: TextBuffer, cursor: Position): EngineResult {
+    const change = this.lastChange;
+    if (!change) return this.unchanged(state);
+
+    const repeated: Command = command.hasCount
+      ? { ...change.command, count: command.count, hasCount: true }
+      : change.command;
+
+    this.repeating = true;
+    let result: EngineResult;
+    try {
+      result = this.dispatch(state, repeated, buffer, cursor);
+    } finally {
+      this.repeating = false;
+    }
+
+    return result.state.mode === 'insert' ? replayInsert(result, change.insertedText) : result;
   }
 
   // ---------------------------------------------------------------- motions
@@ -688,6 +777,8 @@ export class VimEngine {
           actions: [{ type: 'executeCommand', command: 'undo' }, { type: 'setMode', mode: 'normal' }],
           handled: true
         };
+      case '.':
+        return this.runRepeat(state, command, buffer, cursor);
       case 'v':
         return this.toggleVisual(state, cursor, 'visual');
       case 'V':
@@ -963,6 +1054,45 @@ export class VimEngine {
   private unchanged(state: VimState): EngineResult {
     return { state: { ...state, pendingKeys: '', remapPending: [] }, actions: [], handled: true };
   }
+}
+
+interface LastChange {
+  readonly command: Command;
+  /** Text typed before Escape, for a change that ran through Insert mode. */
+  readonly insertedText: string;
+}
+
+/** Where a change that opens Insert mode puts the caret, i.e. where typing starts. */
+function insertStartOf(actions: readonly Action[]): Position {
+  for (const action of actions) {
+    if (action.type === 'setCursor') return action.position;
+  }
+  return pos(0, 0);
+}
+
+/**
+ * Folds the text typed during the original change into its repeat. The insertion
+ * is merged into the command's own edit rather than added as a second one: the
+ * two would touch at the same position, and one edit that replaces the range
+ * with the final text is both simpler and what the document should end up with.
+ */
+function replayInsert(result: EngineResult, text: string): EngineResult {
+  const edit = result.actions.find(action => action.type === 'edit');
+  const at = edit ? edit.range.start : insertStartOf(result.actions);
+  const merged = (edit?.text ?? '') + text;
+
+  const actions: Action[] = [
+    { type: 'edit', range: edit ? edit.range : { start: at, end: at }, text: merged },
+    { type: 'setCursor', position: endOfInsertedText(at, merged), toFirstNonBlank: false },
+    { type: 'setMode', mode: 'normal' },
+    { type: 'reveal' }
+  ];
+
+  return {
+    ...result,
+    state: { ...result.state, mode: 'normal', desiredColumn: endOfInsertedText(at, merged).character },
+    actions
+  };
 }
 
 export function isVisual(mode: Mode): boolean {

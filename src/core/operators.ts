@@ -231,7 +231,7 @@ function normalizeEol(text: string, eol: string): string {
 }
 
 /** Position of the last character of `text` once inserted at `at`. */
-function endOfInsertedText(at: Position, text: string): Position {
+export function endOfInsertedText(at: Position, text: string): Position {
   const lines = text.split(/\r\n|\n/);
   if (lines.length === 1) {
     return pos(at.line, Math.max(at.character, at.character + text.length - 1));
