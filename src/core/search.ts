@@ -1,6 +1,6 @@
 import { TextBuffer, lastLine } from './buffer';
 import { charAt, classOf } from './scan';
-import { Position, comparePositions, pos } from './types';
+import { Position, Range, comparePositions, pos } from './types';
 
 /**
  * Searching, as `/` `?` `n` `N` `*` `#` use it.
@@ -16,6 +16,17 @@ import { Position, comparePositions, pos } from './types';
  */
 
 export type SearchDirection = 'forward' | 'backward';
+
+/**
+ * Which search to use.
+ *
+ * `statusBar` is this extension's own: the pattern is typed into the status bar,
+ * matching is done here, and `n` behaves as a motion, so `d/foo` and `v/foo`
+ * work. `editorFind` hands `/` to VS Code's find widget instead, which brings
+ * its own history, regex toggle and match count — at the cost of the keys typed
+ * into it never reaching us, so nothing can combine with an operator.
+ */
+export type SearchStyle = 'statusBar' | 'editorFind';
 
 export interface SearchState {
   readonly pattern: string;
@@ -96,6 +107,8 @@ export interface WordSearch {
   readonly pattern: string;
   /** Where the word begins. `*` searches from there, not from the caret. */
   readonly start: Position;
+  /** The word itself, for the find widget, which searches for text rather than a pattern. */
+  readonly range: Range;
 }
 
 /**
@@ -123,7 +136,11 @@ export function wordSearchAt(buffer: TextBuffer, from: Position): WordSearch | n
   // Only a word of word characters can carry `\b`; a run of punctuation such as
   // `->` has no word boundary to anchor to.
   const pattern = wordClass === 'word' ? `\\b${escape(word)}\\b` : escape(word);
-  return { pattern, start: pos(from.line, start) };
+  return {
+    pattern,
+    start: pos(from.line, start),
+    range: { start: pos(from.line, start), end: pos(from.line, end) }
+  };
 }
 
 function escape(text: string): string {
