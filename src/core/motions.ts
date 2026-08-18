@@ -2,6 +2,7 @@ import { TextBuffer, clampLine, lastLine, lineLength } from './buffer';
 import { firstNonBlank, maxColumn } from './cursor';
 import { charAt, classOf, isEmptyLine, nextPosition, previousPosition } from './scan';
 import { SearchState, findMatch } from './search';
+import { matchingBracket } from './textobjects';
 import { Mode, Position, pos, positionsEqual } from './types';
 
 /**
@@ -246,6 +247,8 @@ export const MOTIONS: Readonly<Record<string, Motion>> = {
   },
   '{': { kind: 'exclusive', exec: ({ buffer, from, count }) => paragraph(buffer, from, count, -1) },
   '}': { kind: 'exclusive', exec: ({ buffer, from, count }) => paragraph(buffer, from, count, 1) },
+  // `%` is inclusive so that `d%` takes both brackets and everything between.
+  '%': { kind: 'inclusive', exec: ({ buffer, from }) => matchingBracket(buffer, from) },
   n: { kind: 'exclusive', exec: context => repeatSearch(context, false) },
   N: { kind: 'exclusive', exec: context => repeatSearch(context, true) },
   // `*` and `#` are `n` over a search the engine has just set to the word under

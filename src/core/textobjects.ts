@@ -88,6 +88,42 @@ function bracketObject(
  * character is exempt from the depth count so that sitting on either bracket of
  * a pair still selects that pair.
  */
+/**
+ * The bracket `%` pairs with: the first of `()`, `[]` or `{}` at or after the
+ * cursor on its line, matched to its partner. Vim's default `matchpairs` is these
+ * three; `<>` is deliberately absent, since `a < b` would pair with anything.
+ */
+export function matchingBracket(buffer: TextBuffer, from: Position): Position | null {
+  const text = buffer.lineAt(from.line);
+
+  for (let index = from.character; index < text.length; index++) {
+    const bracket = MATCHED_PAIRS[text[index]!];
+    if (!bracket) continue;
+
+    // Scanning from the bracket itself works because `scanForUnmatched` ignores
+    // the character it starts on: what it then finds is the unmatched partner.
+    const at = pos(from.line, index);
+    return scanForUnmatched(buffer, at, bracket.open, bracket.close, bracket.direction);
+  }
+
+  return null;
+}
+
+interface BracketSpec {
+  readonly open: string;
+  readonly close: string;
+  readonly direction: 'forward' | 'backward';
+}
+
+const MATCHED_PAIRS: Readonly<Record<string, BracketSpec>> = {
+  '(': { open: '(', close: ')', direction: 'forward' },
+  ')': { open: '(', close: ')', direction: 'backward' },
+  '[': { open: '[', close: ']', direction: 'forward' },
+  ']': { open: '[', close: ']', direction: 'backward' },
+  '{': { open: '{', close: '}', direction: 'forward' },
+  '}': { open: '{', close: '}', direction: 'backward' }
+};
+
 function scanForUnmatched(
   buffer: TextBuffer,
   from: Position,
