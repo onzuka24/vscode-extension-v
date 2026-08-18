@@ -48,7 +48,8 @@ const INVALID: ParseResult = { status: 'invalid' };
 const NORMAL_ACTIONS = new Set([
   'i', 'a', 'I', 'A', 'o', 'O',
   'x', 'X', 's', 'S', 'D', 'C', 'Y',
-  'p', 'P', 'u', 'J', '~', 'v', 'V'
+  'p', 'P', 'u', 'J', '~', 'v', 'V',
+  '.'
 ]);
 
 /** Visual-mode commands. `d`/`c`/`y` are handled as operators over the selection. */
