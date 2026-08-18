@@ -29,6 +29,9 @@ export async function applyActions(
       await vscode.commands.executeCommand(action.command);
     } else if (action.type === 'indent') {
       await applyIndent(editor, action);
+    } else if (action.type === 'notify') {
+      // Transient by design: a mistyped Ex command should not cost a click.
+      vscode.window.setStatusBarMessage(action.message, 4000);
     }
   }
 

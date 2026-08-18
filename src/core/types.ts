@@ -3,7 +3,13 @@
  * of this layer is that it can be exercised from a plain Node test runner.
  */
 
-export type Mode = 'normal' | 'insert' | 'visual' | 'visual-line';
+/**
+ * `command` is Vim's command-line mode: the buffer is untouched and every key
+ * goes into the line being typed after `:`. It is a mode rather than a flag
+ * because the caret, the status bar and the `enter` / `backspace` keybindings all
+ * have to behave differently while it is on.
+ */
+export type Mode = 'normal' | 'insert' | 'visual' | 'visual-line' | 'command';
 
 /** Zero-based, mirroring VS Code's coordinate system. */
 export interface Position {

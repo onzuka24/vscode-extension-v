@@ -23,6 +23,8 @@ export interface Session {
   readonly commands: readonly string[];
   /** Indent requests the engine made, in order. */
   readonly indents: readonly IndentRequest[];
+  /** Messages the engine asked the editor to show, in order. */
+  readonly messages: readonly string[];
   /** Half-typed sequence still being held, as the status bar would render it. */
   readonly pending: string;
 }
@@ -59,6 +61,7 @@ interface Editor {
   state: VimState;
   commands: string[];
   indents: IndentRequest[];
+  messages: string[];
 }
 
 export function run(initial: string, keys: string, options: RunOptions = {}): Session {
@@ -79,7 +82,8 @@ export function run(initial: string, keys: string, options: RunOptions = {}): Se
     anchor: null,
     state: createState(options.mode ?? 'normal', cursor),
     commands: [],
-    indents: []
+    indents: [],
+    messages: []
   };
 
   for (const key of tokenize(keys)) {
@@ -93,6 +97,7 @@ export function run(initial: string, keys: string, options: RunOptions = {}): Se
     at: `${editor.cursor.line}:${editor.cursor.character}`,
     commands: editor.commands,
     indents: editor.indents,
+    messages: editor.messages,
     pending: describePending(editor.state, leader)
   };
 }
@@ -145,7 +150,7 @@ function apply(editor: Editor, result: { state: VimState; actions: readonly Acti
     else if (action.type === 'indent') {
       const { startLine, endLine, direction, levels } = action;
       editor.indents.push({ startLine, endLine, direction, levels });
-    }
+    } else if (action.type === 'notify') editor.messages.push(action.message);
   }
 
   editor.state = result.state;

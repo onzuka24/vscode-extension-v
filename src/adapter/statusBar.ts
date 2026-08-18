@@ -5,7 +5,10 @@ const LABELS: Readonly<Record<Mode, string>> = {
   normal: '$(circle-large-outline) NORMAL',
   insert: '$(edit) INSERT',
   visual: '$(selection) VISUAL',
-  'visual-line': '$(selection) V-LINE'
+  'visual-line': '$(selection) V-LINE',
+  // In command-line mode the line being typed follows the label, so the label
+  // itself stays short: `COMMAND  :w`.
+  command: '$(chevron-right) COMMAND'
 };
 
 export interface StatusOptions {
