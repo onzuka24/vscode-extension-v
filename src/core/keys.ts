@@ -15,7 +15,9 @@ export const SPECIAL_KEYS = {
   /** Runs the command line. Only meaningful in command-line mode. */
   enter: '<CR>',
   /** Rubs out the last character of the command line. */
-  backspace: '<BS>'
+  backspace: '<BS>',
+  /** Deletes the character under the cursor, as `x` does. */
+  delete: '<Del>'
 } as const;
 
 export type SpecialKey = (typeof SPECIAL_KEYS)[keyof typeof SPECIAL_KEYS];
@@ -38,6 +40,8 @@ const ALIASES: Readonly<Record<string, string>> = {
   return: SPECIAL_KEYS.enter,
   bs: SPECIAL_KEYS.backspace,
   backspace: SPECIAL_KEYS.backspace,
+  del: SPECIAL_KEYS.delete,
+  delete: SPECIAL_KEYS.delete,
   space: SPACE
 };
 

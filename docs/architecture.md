@@ -167,8 +167,14 @@ flowchart TD
     Q4 -- はい --> E["engine.handleKey へ"]
 ```
 
-Escape・`Ctrl` 系・矢印キー、そしてコマンドラインモードの Enter と Backspace は `type` に
-流れてこないため、それらだけ `package.json` の `keybindings` で受けます。その `when` 句には必ず `editorTextFocus` を伴わせ、Escape については
+Escape・`Ctrl` 系・矢印キー・`Backspace`・`Enter`・`Delete` は `type` に流れてこないため、
+それらだけ `package.json` の `keybindings` で受けます。
+
+**このうち `Backspace` `Enter` `Delete` は、受け止めないと Normal モードが成立しません。**
+放っておくと VS Code の編集コマンドがそのまま働き、`type` をいくら押さえても Backspace が
+1文字消し、Enter が行を割ってしまいます。Vim ではどれもモーションなので（`Delete` だけ `x`
+相当）、`handleEditingKey` がその形で引き取ります。「Normal モードはバッファを変えない」を
+保つには、`type` の乗っ取りだけでは足りないということです。その `when` 句には必ず `editorTextFocus` を伴わせ、Escape については
 サジェストウィジェットなどが開いているときは譲るよう条件を絞っています。
 
 ## リマップ — パーサの手前に置く変換層
