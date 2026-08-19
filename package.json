@@ -56,6 +56,18 @@
       {
         "command": "vimLike.delete",
         "title": "Vim Like: Delete Key"
+      },
+      {
+        "command": "vimLike.openTerminalOutput",
+        "title": "Vim Like: Open Last Terminal Output"
+      },
+      {
+        "command": "vimLike.sendToTerminal",
+        "title": "Vim Like: Send Line or Selection to Terminal"
+      },
+      {
+        "command": "vimLike.showLog",
+        "title": "Vim Like: Show Log"
       }
     ],
     "configuration": {
