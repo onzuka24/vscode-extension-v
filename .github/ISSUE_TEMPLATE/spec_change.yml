@@ -1,0 +1,111 @@
+name: 仕様変更の提案
+description: 今ある動作を別のものに変えたい（未対応の機能を足す場合は「機能追加の要望」へ）
+title: '[Spec] '
+labels: ['spec-change']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        すでに動いているものを変える提案です。動いていないものを足す場合は
+        「機能追加の要望」を使ってください。
+
+        この拡張機能は Vim の挙動に合わせることを基本にしつつ、VS Code に合わない部分は
+        意図的に外しています。**どちらの向きの変更なのか**がはっきりしていると、
+        判断も、あとから理由を読み返すのも楽になります。
+
+  - type: input
+    id: target
+    attributes:
+      label: 対象
+      description: 変えたいキー・コマンド・設定を1つ書いてください。
+      placeholder: 'dw / :qa! / <leader>n / vimLike.showMarks'
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: 現在の動作
+      description: |
+        今どう動くか。再現できる形だと確実です。テストと同じ書き方が使えます。
+
+        ```
+        バッファ:   hello world
+        カーソル:   0:0
+        キー列:     dw
+        結果:       world
+        ```
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed
+    attributes:
+      label: 変更後の動作
+      description: 同じ例で、どうなってほしいかを書いてください。
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: fidelity
+    attributes:
+      label: Vim との関係
+      description: |
+        この変更は Vim に近づきますか、離れますか。離れる提案が悪いわけではありません
+        （`vimLike.search` の `editorFind` のように、VS Code に合わせたほうが良い場面はあります）。
+        ただし理由の重さが変わります。
+      options:
+        - Vim の挙動に近づける（今がVimと違う）
+        - Vim から意図的に離れる（VS Code に合わせたい）
+        - Vim に対応する挙動がない
+        - 分からない
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: なぜ変えるのか
+      description: |
+        今の動作で何が困るか。「Vim と違うから」だけでも理由になりますが、
+        実際に手が止まった場面があれば書いてください。判断の材料になります。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: compatibility
+    attributes:
+      label: 既定を変えるか、選べるようにするか
+      description: |
+        設定を増やすと、その分だけ組み合わせを保守することになります。
+        既定を変えて済むならそのほうが単純です。
+      options:
+        - 既定を変える（設定は増やさない）
+        - 設定で選べるようにする
+        - どちらでもよい・決めてほしい
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: 影響しそうなところ
+      description: 分かる範囲で構いません。着手時に見落としを減らすためのものです。
+      options:
+        - label: 既存のテストの期待値が変わる
+        - label: settings.json / keybindings.json の書き換えが要る（既存の設定が壊れる）
+        - label: examples/ の設定例を直す必要がある
+        - label: README や docs/ の記述を直す必要がある
+        - label: 他のキーやコマンドの挙動にも波及する
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 代わりに考えたこと
+      description: |
+        別の案を検討して外したのなら、その理由も書いてください。
+        あとから同じ検討を繰り返さずに済みます。
+    validations:
+      required: false
