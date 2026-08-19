@@ -28,6 +28,8 @@ vscode-extension-v/
 │   ├── adapter/             ★ vscode に依存する薄い層
 │   │   ├── buffer.ts          TextDocument を TextBuffer として見せる
 │   │   ├── apply.ts           Action を実際の編集・カーソル移動に変換
+│   │   ├── transcript.ts      ターミナル出力の整形（vscode に依存しない）
+│   │   ├── terminal.ts        出力の取り込みと、行のターミナルへの送信
 │   │   ├── markIcon.ts        マーク名を描いた SVG の生成（vscode に依存しない）
 │   │   ├── markDecorations.ts マークをガターに描く
 │   │   └── statusBar.ts       モード表示

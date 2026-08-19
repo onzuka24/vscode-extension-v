@@ -72,7 +72,12 @@
       "commands": ["workbench.view.explorer", "workbench.files.action.focusFilesExplorer"]
     },
     // nnoremap <leader>t :Term<enter>
-    { "before": ["<leader>", "t"], "commands": ["workbench.action.terminal.toggleTerminal"] },
+    // ターミナルそのものではなく、ターミナル用の作業バッファを開きます。
+    // 出力がここに追記され、書いた行を <leader>r で送れます。文書なので
+    // Vim のモーション・検索・マークがそのまま効きます。
+    // ターミナルの表示切替そのものが欲しい場合は Ctrl+` (VS Code 既定) です。
+    { "before": ["<leader>", "t"], "commands": ["vimLike.openTerminalOutput"] },
+    { "before": ["<leader>", "r"], "commands": ["vimLike.sendToTerminal"] },
     // nnoremap <leader>z zi
     { "before": ["<leader>", "z"], "commands": ["editor.toggleFold"] },
     // map <leader>/ gc

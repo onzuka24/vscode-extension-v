@@ -4,6 +4,7 @@ import { applyActions, readCursor } from './adapter/apply';
 import { DocumentBuffer } from './adapter/buffer';
 import { MarkDecorations } from './adapter/markDecorations';
 import { ModeStatusBar } from './adapter/statusBar';
+import { TerminalBridge } from './adapter/terminal';
 import { EngineResult, VimEngine, VimState, createState, describePending, withExternalCursor } from './core/engine';
 import { DEFAULT_LEADER, SPECIAL_KEYS } from './core/keys';
 import { RemapRule, RemapTable } from './core/remap';
@@ -13,6 +14,7 @@ const engine = new VimEngine();
 let state: VimState = createState('normal');
 let statusBar: ModeStatusBar;
 let markDecorations: MarkDecorations;
+let terminal: TerminalBridge;
 let enabled = true;
 let leader: string = DEFAULT_LEADER;
 
@@ -41,6 +43,8 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(statusBar);
   markDecorations = new MarkDecorations();
   context.subscriptions.push(markDecorations);
+  terminal = new TerminalBridge();
+  context.subscriptions.push(terminal);
 
   enabled = configuration().get('enabled', true);
   loadSearchStyle();
@@ -258,6 +262,28 @@ function registerCommands(context: vscode.ExtensionContext): void {
       withActiveEditor(editor => enqueue(() => feed(editor, key, true)))
     );
   }
+
+  // Terminal output is not a document, so the engine cannot reach it. Moving the
+  // whole loop into a document is what gives it every motion, search and mark
+  // without any of them being reimplemented.
+  register('vimLike.openTerminalOutput', async () => {
+    if (!terminal.available) {
+      void vscode.window.showWarningMessage(
+        'Vim Like: この VS Code はターミナルの出力を読む API に対応していません。'
+      );
+    }
+    await terminal.open();
+  });
+
+  register('vimLike.showLog', () => terminal.showLog());
+
+  register('vimLike.sendToTerminal', () =>
+    withActiveEditor(async editor => {
+      if (!(await terminal.send(editor))) {
+        void vscode.window.showInformationMessage('Vim Like: 送る内容がありません。');
+      }
+    })
+  );
 
   register('vimLike.toggleEnabled', async () => {
     enabled = !enabled;
