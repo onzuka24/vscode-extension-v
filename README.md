@@ -258,9 +258,14 @@ settings.json に貼り付けてから削っていくのが早いと思います
 例を [examples/keybindings.jsonc](examples/keybindings.jsonc) に置いています
 （settings.json ではなく keybindings.json に書きます）。
 
-**ターミナルでは何もできません。** 打鍵が疑似端末へ直接渡されるため、VS Code の拡張機能
-からは手が出せません。行編集を Vim 風にしたい場合は、シェル側で `set -o vi`（bash）や
+**ターミナルではモードやオペレータは使えません。** VS Code のターミナルに打たれたキーを
+拡張機能が横取りする API がないためです（送り込む `sendText` と、シェル統合でコマンド出力を
+読む API はあります）。行編集を Vim 風にしたい場合は、シェル側で `set -o vi`（bash）や
 `bindkey -v`（zsh）を設定してください。
+
+拡張機能が自前で用意する `Pseudoterminal` なら打鍵を受け取れますが、その場合はシェルの起動から
+スクロールバックの管理まで全部を自前で持つことになります。採らない判断をした経緯は
+[#31](https://github.com/onzuka24/vscode-extension-v/issues/31) にあります。
 
 なおこの拡張機能は、エクスプローラーやターミナルにフォーカスがあるときにキーを奪いません。
 すべてのキーバインドに `editorTextFocus` を付けており、構造テストで強制しています。
