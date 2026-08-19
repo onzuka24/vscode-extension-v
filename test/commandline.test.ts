@@ -119,3 +119,34 @@ test('リマップから :w<CR> を展開できる', () => {
   const remaps = { normal: [{ before: ['<leader>', 's'], after: [':', 'w', '<CR>'] }] };
   assert.deepEqual(run(LINES, ' s', { remaps }).commands, ['workbench.action.files.save']);
 });
+
+const CLOSE_ALL = 'workbench.action.closeAllEditors';
+const SAVE_ALL = 'workbench.action.files.saveAll';
+
+test(':qa はすべてのエディターを閉じる', () => {
+  assert.deepEqual(run(LINES, ':qa<CR>').commands, [CLOSE_ALL]);
+  assert.deepEqual(run(LINES, ':qall<CR>').commands, [CLOSE_ALL]);
+});
+
+test(':wqa と :xa はすべて保存してから閉じる', () => {
+  assert.deepEqual(run(LINES, ':wqa<CR>').commands, [SAVE_ALL, CLOSE_ALL]);
+  assert.deepEqual(run(LINES, ':xa<CR>').commands, [SAVE_ALL, CLOSE_ALL]);
+  assert.deepEqual(run(LINES, ':wqall<CR>').commands, [SAVE_ALL, CLOSE_ALL]);
+});
+
+test(':qa! は :qa と同じで、未保存の確認は VS Code に任せる', () => {
+  // 全体を破棄して閉じるコマンドが VS Code に存在しないため。
+  // 断るよりは閉じて確認を出すほうがましだという判断で、README にも書いてある。
+  assert.deepEqual(run(LINES, ':qa!<CR>').commands, [CLOSE_ALL]);
+  assert.deepEqual(run(LINES, ':qa!<CR>').messages, [], '黙って別のことをするわけではない');
+});
+
+test('1つだけ閉じる :q と全部閉じる :qa は別物のまま', () => {
+  assert.deepEqual(run(LINES, ':q<CR>').commands, ['workbench.action.closeActiveEditor']);
+  assert.deepEqual(run(LINES, ':q!<CR>').commands, ['workbench.action.revertAndCloseActiveEditor']);
+});
+
+test('綴りを間違えれば従来どおり断る', () => {
+  assert.deepEqual(run(LINES, ':qaa<CR>').commands, []);
+  assert.match(run(LINES, ':qaa<CR>').messages[0] ?? '', /^E492/);
+});

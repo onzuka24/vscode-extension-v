@@ -29,11 +29,20 @@ export type ExCommand =
   | { readonly kind: 'unknown'; readonly input: string };
 
 const SAVE = 'workbench.action.files.save';
+const SAVE_ALL = 'workbench.action.files.saveAll';
 const CLOSE = 'workbench.action.closeActiveEditor';
+const CLOSE_ALL = 'workbench.action.closeAllEditors';
 
 /**
  * `!` is accepted where Vim accepts it, but only `:q!` differs in what it does:
  * it throws the changes away, which is the whole reason people type it.
+ *
+ * `:qa!` cannot do the same. Discarding changes across every editor has no
+ * command behind it in VS Code — `workbench.action.files.revertEditors` looks
+ * like one but is an action built inside the "could not save" notification, not
+ * something that can be invoked. So `:qa!` closes everything and lets VS Code
+ * ask about the unsaved files. The prompt makes the difference visible at the
+ * moment it matters, which beats refusing a command Vim users type by reflex.
  */
 const COMMANDS: Readonly<Record<string, readonly string[]>> = {
   w: [SAVE],
@@ -47,6 +56,15 @@ const COMMANDS: Readonly<Record<string, readonly string[]>> = {
   'wq!': [SAVE, CLOSE],
   x: [SAVE, CLOSE],
   xit: [SAVE, CLOSE],
+  qa: [CLOSE_ALL],
+  qall: [CLOSE_ALL],
+  'qa!': [CLOSE_ALL],
+  'qall!': [CLOSE_ALL],
+  wqa: [SAVE_ALL, CLOSE_ALL],
+  'wqa!': [SAVE_ALL, CLOSE_ALL],
+  wqall: [SAVE_ALL, CLOSE_ALL],
+  xa: [SAVE_ALL, CLOSE_ALL],
+  xall: [SAVE_ALL, CLOSE_ALL],
   sp: ['workbench.action.splitEditorDown'],
   split: ['workbench.action.splitEditorDown'],
   vs: ['workbench.action.splitEditor'],

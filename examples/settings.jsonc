@@ -102,9 +102,8 @@
       "commands": ["claude-vscode.sidebar.open", "claude-vscode.focus"]
     }
 
-    // GitHub Copilot Chat を使う場合はこちらを足してください。
-    // 現在この環境の VS Code には Copilot 系の拡張機能が入っていないため、
-    // コマンド ID が正しいかは未確認です。
+    // GitHub Copilot Chat を使う場合はこちらを足してください。コマンド自体は
+    // VS Code 本体に存在します (拡張機能が入っていなければ何も起きません)。
     // { "before": ["<leader>", "M"], "commands": ["workbench.action.chat.open"] }
   ],
 
@@ -144,7 +143,8 @@
 //     既存ファイルを開きたい場合は workbench.action.quickOpen のほうが近いです。
 //   map <leader>/ gc
 //     editor.action.commentLine は現在行 (Visual では選択範囲) を対象にします。
-//     `gc` のようにモーションと組み合わせる形は未対応です (issue #3)。
+//     `gcip` のようにモーションと組み合わせる形は入れていません。行と選択範囲の
+//     トグルで足りているためで、必要になれば改めて起票します。
 //
 // 置き換え先がないもの
 //   nnoremap <leader>u :-tabnew<enter>    現在のタブの手前に開く相当がありません
