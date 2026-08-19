@@ -37,6 +37,8 @@ export class TerminalBridge {
    * too young to have shell integration, so nothing was ever captured.
    */
   private terminal: vscode.Terminal | undefined;
+  /** Said once per session; repeating it on every send would be worse than silence. */
+  private warnedAboutIntegration = false;
 
   public constructor() {
     this.file = workingFile();
@@ -91,9 +93,31 @@ export class TerminalBridge {
 
     const terminal = await this.terminalToSendTo();
     this.log.info(`送信: ${JSON.stringify(text)} / シェル統合=${terminal.shellIntegration ? 'あり' : 'なし'}`);
+
+    // Sending works either way; only the capture needs shell integration. Saying
+    // so is worth a notice, because the failure is otherwise silent — the command
+    // runs, and the output simply never appears.
+    if (!terminal.shellIntegration) this.noticeMissingIntegration();
+
     terminal.show(true);
     terminal.sendText(text, true);
     return true;
+  }
+
+  private noticeMissingIntegration(): void {
+    if (this.warnedAboutIntegration) return;
+    this.warnedAboutIntegration = true;
+
+    void vscode.window
+      .showInformationMessage(
+        'Vim Like: このターミナルはシェル統合が有効でないため、出力を取り込めません。' +
+          'コマンドの実行そのものはできます。シェルを置き換える種類のツール ' +
+          '(kiro-cli、Amazon Q、Fig など) を使っている場合はそれが原因です。',
+        'ログを見る'
+      )
+      .then(choice => {
+        if (choice) this.log.show();
+      });
   }
 
   /** Reuses a terminal, and gives a new one time to gain shell integration. */
