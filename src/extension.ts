@@ -245,12 +245,14 @@ function registerCommands(context: vscode.ExtensionContext): void {
 
   register('vimLike.redo', () => vscode.commands.executeCommand('redo'));
 
-  // Enter and Backspace never arrive through `type`, so command-line mode gets
-  // them the way Escape is already delivered: as a keybinding that feeds the
-  // matching token back into the engine.
+  // Enter, Backspace and Delete never arrive through `type`. They are delivered
+  // the way Escape already is — a keybinding that feeds the matching token into
+  // the engine — which is what stops VS Code from editing the buffer while
+  // Normal mode is supposed to be swallowing the key.
   for (const [id, key] of [
-    ['vimLike.commandLineAccept', SPECIAL_KEYS.enter],
-    ['vimLike.commandLineBackspace', SPECIAL_KEYS.backspace]
+    ['vimLike.enter', SPECIAL_KEYS.enter],
+    ['vimLike.backspace', SPECIAL_KEYS.backspace],
+    ['vimLike.delete', SPECIAL_KEYS.delete]
   ] as const) {
     register(id, () =>
       withActiveEditor(editor => enqueue(() => feed(editor, key, true)))

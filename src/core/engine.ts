@@ -20,6 +20,7 @@ import { Command, awaitsLiteralKey, parse } from './parser';
 import { JUMP_MARK, MarkEntry, MarkStore } from './marks';
 import { RegisterStore } from './registers';
 import { RemapTable } from './remap';
+import { previousPosition } from './scan';
 import { resolveTextObject } from './textobjects';
 import { Mode, Position, Range, RegisterContent, comparePositions, pos } from './types';
 
@@ -206,11 +207,16 @@ export class VimEngine {
         handled: true
       };
     }
-    if (isSpecialKey(key)) return this.unchanged(state);
-
+    // Insert mode wants VS Code's own Backspace and Enter, so it is settled
+    // before anything below claims a key.
     if (state.mode === 'insert') {
       return { state, actions: [], handled: false };
     }
+
+    const editingKey = this.handleEditingKey(state, key, buffer, cursor);
+    if (editingKey) return editingKey;
+
+    if (isSpecialKey(key)) return this.unchanged(state);
 
     // `:` opens the command line — but only when no command is half-typed, so
     // that `f:` and `r:` still see a colon rather than losing it to the prompt.
@@ -243,6 +249,47 @@ export class VimEngine {
       return { state: { ...state, pendingKeys: '' }, actions: [], handled: true };
     }
     return this.execute({ ...state, pendingKeys: '' }, result.command, buffer, cursor);
+  }
+
+  /**
+   * Backspace, Enter and Delete, which VS Code would otherwise treat as editing
+   * commands. None of them reaches `type`, so without this they go straight to
+   * the buffer and Normal mode stops being a mode: Backspace rubs out a
+   * character and Enter splits the line.
+   *
+   * In Vim all three are motions rather than edits (`<Del>` aside, which is `x`),
+   * so that is what they become here. Returns null for a key it does not own.
+   */
+  private handleEditingKey(state: VimState, key: string, buffer: TextBuffer, cursor: Position): EngineResult | null {
+    if (key === SPECIAL_KEYS.backspace) {
+      // Unlike `h`, Backspace wraps to the previous line — Vim's `whichwrap`
+      // lists it by default.
+      const target = previousPosition(buffer, cursor);
+      return target ? this.jumpTo(state, buffer, target) : this.unchanged(state);
+    }
+
+    if (key === SPECIAL_KEYS.enter) {
+      if (cursor.line >= lastLine(buffer)) return this.unchanged(state);
+      const line = cursor.line + 1;
+      return this.jumpTo(state, buffer, pos(line, firstNonBlank(buffer, line)));
+    }
+
+    if (key === SPECIAL_KEYS.delete) {
+      // Exactly `x`, registers included, so replay rather than reimplement.
+      return { state: { ...state, remapPending: [] }, actions: [], handled: true, replay: ['x'] };
+    }
+
+    return null;
+  }
+
+  /** Moves the caret, dragging the Visual selection along if there is one. */
+  private jumpTo(state: VimState, buffer: TextBuffer, target: Position): EngineResult {
+    const position = clampCursor(buffer, target, state.mode);
+    return {
+      state: { ...state, pendingKeys: '', remapPending: [], desiredColumn: position.character },
+      actions: [...this.moveActions(state, position), { type: 'reveal' }],
+      handled: true
+    };
   }
 
   /** Escape arrives as a keybinding rather than through `type`. */

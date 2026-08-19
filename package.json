@@ -46,12 +46,16 @@
         "title": "Vim Like: Toggle Vim Mode"
       },
       {
-        "command": "vimLike.commandLineAccept",
-        "title": "Vim Like: Run the Command Line"
+        "command": "vimLike.enter",
+        "title": "Vim Like: Enter Key"
       },
       {
-        "command": "vimLike.commandLineBackspace",
-        "title": "Vim Like: Delete Back in the Command Line"
+        "command": "vimLike.backspace",
+        "title": "Vim Like: Backspace Key"
+      },
+      {
+        "command": "vimLike.delete",
+        "title": "Vim Like: Delete Key"
       }
     ],
     "configuration": {
@@ -181,14 +185,14 @@
         "when": "vimLike.active && vimLike.mode != insert && editorTextFocus"
       },
       {
-        "command": "vimLike.commandLineAccept",
+        "command": "vimLike.enter",
         "key": "enter",
-        "when": "vimLike.active && vimLike.mode == command && editorTextFocus"
+        "when": "vimLike.active && vimLike.mode != insert && editorTextFocus && !suggestWidgetVisible && !parameterHintsVisible && !renameInputVisible && !inSnippetMode"
       },
       {
-        "command": "vimLike.commandLineBackspace",
+        "command": "vimLike.backspace",
         "key": "backspace",
-        "when": "vimLike.active && vimLike.mode == command && editorTextFocus"
+        "when": "vimLike.active && vimLike.mode != insert && editorTextFocus && !suggestWidgetVisible && !parameterHintsVisible && !renameInputVisible && !inSnippetMode"
       },
       {
         "command": "workbench.action.navigateLeft",
@@ -224,6 +228,11 @@
         "command": "workbench.action.closeActiveEditor",
         "key": "ctrl+w c",
         "when": "vimLike.active && vimLike.mode != insert && editorTextFocus"
+      },
+      {
+        "command": "vimLike.delete",
+        "key": "delete",
+        "when": "vimLike.active && vimLike.mode != insert && editorTextFocus && !suggestWidgetVisible && !parameterHintsVisible && !renameInputVisible && !inSnippetMode"
       }
     ]
   },
