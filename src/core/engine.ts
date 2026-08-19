@@ -348,6 +348,31 @@ export class VimEngine {
         return { ...closed, state: { ...closed.state, desiredColumn: 0 }, actions };
       }
 
+      case 'marks': {
+        const entries = this.marks.list(buffer.id).map(mark => ({
+          name: mark.name,
+          line: mark.position.line,
+          character: mark.position.character,
+          text: buffer.lineAt(clampLine(buffer, mark.position.line))
+        }));
+        actions.push(
+          entries.length === 0
+            ? { type: 'notify', message: 'No marks set' }
+            : { type: 'showMarks', entries }
+        );
+        break;
+      }
+
+      case 'deleteMarks': {
+        if (parsed.all) this.marks.clearNamed(buffer.id);
+        else for (const name of parsed.names) this.marks.delete(buffer.id, name);
+        break;
+      }
+
+      case 'error':
+        actions.push({ type: 'notify', message: parsed.message });
+        break;
+
       case 'unknown':
         // Vim's own wording, so that a mistyped command reads the way a Vim user
         // expects rather than as a VS Code extension error.

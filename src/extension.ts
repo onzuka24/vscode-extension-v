@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { Action, MarkListing } from './core/actions';
 import { applyActions, readCursor } from './adapter/apply';
 import { DocumentBuffer } from './adapter/buffer';
 import { MarkDecorations } from './adapter/markDecorations';
@@ -159,6 +160,50 @@ async function commit(editor: vscode.TextEditor, result: EngineResult): Promise<
   await applyActions(editor, result.actions, setMode, state.mode);
   lastAppliedSelection = selectionKey(editor.selection);
   await refresh();
+
+  const listing = result.actions.find(isShowMarks);
+  if (listing) {
+    // Deliberately not awaited: the picker stays open for as long as the user
+    // leaves it there, and awaiting it here would hold the keystroke queue.
+    void showMarkPicker(editor, listing.entries).catch(error =>
+      console.error('Vim Like failed to show the mark list', error)
+    );
+  }
+}
+
+function isShowMarks(action: Action): action is Extract<Action, { type: 'showMarks' }> {
+  return action.type === 'showMarks';
+}
+
+interface MarkPick extends vscode.QuickPickItem {
+  readonly name: string;
+}
+
+/**
+ * `:marks`. Choosing a row does not move the caret directly — it replays `` ` ``
+ * and the mark's name through the engine, so the jump is the same one the keys
+ * would have made, including leaving a breadcrumb for `` `` ``.
+ */
+async function showMarkPicker(editor: vscode.TextEditor, entries: readonly MarkListing[]): Promise<void> {
+  const items: MarkPick[] = entries.map(entry => ({
+    name: entry.name,
+    label: entry.name === '`' ? '` — 直前の位置' : entry.name,
+    description: `${entry.line + 1}:${entry.character + 1}`,
+    detail: entry.text.trim() === '' ? '(空行)' : entry.text.trim()
+  }));
+
+  const picked = await vscode.window.showQuickPick(items, {
+    title: 'Vim Like: マーク',
+    placeHolder: '選ぶとその位置へ移動します'
+  });
+  if (!picked) return;
+  // The user may have moved on while the picker was open.
+  if (vscode.window.activeTextEditor !== editor) return;
+
+  await enqueue(async () => {
+    await feed(editor, '`', true);
+    await feed(editor, picked.name, true);
+  });
 }
 
 function selectionKey(selection: vscode.Selection): string {

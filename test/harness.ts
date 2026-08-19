@@ -1,4 +1,4 @@
-import { Action } from '../src/core/actions';
+import { Action, MarkListing } from '../src/core/actions';
 import { LinesBuffer } from '../src/core/buffer';
 import { clampCursor, firstNonBlank } from '../src/core/cursor';
 import { VimEngine, VimState, createState, describePending } from '../src/core/engine';
@@ -30,6 +30,8 @@ export interface Session {
   readonly finds: readonly FindRequest[];
   /** Half-typed sequence still being held, as the status bar would render it. */
   readonly pending: string;
+  /** `:marks` listings the engine produced, in order. */
+  readonly markLists: readonly (readonly MarkListing[])[];
 }
 
 /**
@@ -74,6 +76,7 @@ interface Editor {
   indents: IndentRequest[];
   messages: string[];
   finds: FindRequest[];
+  markLists: (readonly MarkListing[])[];
 }
 
 export function run(initial: string, keys: string, options: RunOptions = {}): Session {
@@ -97,7 +100,8 @@ export function run(initial: string, keys: string, options: RunOptions = {}): Se
     commands: [],
     indents: [],
     messages: [],
-    finds: []
+    finds: [],
+    markLists: []
   };
 
   for (const key of tokenize(keys)) {
@@ -113,7 +117,8 @@ export function run(initial: string, keys: string, options: RunOptions = {}): Se
     indents: editor.indents,
     messages: editor.messages,
     finds: editor.finds,
-    pending: describePending(editor.state, leader)
+    pending: describePending(editor.state, leader),
+    markLists: editor.markLists
   };
 }
 
@@ -166,6 +171,7 @@ function apply(editor: Editor, result: { state: VimState; actions: readonly Acti
       const { startLine, endLine, direction, levels } = action;
       editor.indents.push({ startLine, endLine, direction, levels });
     } else if (action.type === 'notify') editor.messages.push(action.message);
+    else if (action.type === 'showMarks') editor.markLists.push(action.entries);
     else if (action.type === 'find') {
       const { request, count, seed } = action;
       editor.finds.push(seed === undefined ? { request, count } : { request, count, seed });

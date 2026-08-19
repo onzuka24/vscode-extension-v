@@ -125,3 +125,118 @@ test('マーク名はリマップされない', () => {
   const remaps = { normal: [{ before: ['a'], after: ['b'] }] };
   assert.equal(run('alpha\nbeta\ngamma', 'maG`a', { remaps }).at, '0:0');
 });
+
+const LISTED = 'first line\n  second line\nthird line\nfourth line';
+
+test(':marks は付けたマークを行の中身つきで並べる', () => {
+  const session = run(LISTED, 'majjmb:marks<CR>');
+  assert.equal(session.markLists.length, 1);
+
+  assert.deepEqual(session.markLists[0], [
+    { name: 'a', line: 0, character: 0, text: 'first line' },
+    { name: 'b', line: 2, character: 0, text: 'third line' }
+  ]);
+});
+
+test(':marks は名前順に並ぶ', () => {
+  const session = run(LISTED, 'mzjmajma:marks<CR>');
+  assert.deepEqual(
+    session.markLists[0]?.map(entry => entry.name),
+    ['a', 'z']
+  );
+});
+
+test(':marks は直前の位置も載せる', () => {
+  // ガターには出さないが、一覧では「どこから飛んできたか」が有用なので載せる。
+  const session = run(LISTED, 'jmaG:marks<CR>');
+  const names = session.markLists[0]?.map(entry => entry.name) ?? [];
+  assert.ok(names.includes('`'), '一覧には直前の位置が含まれる');
+  assert.ok(names.includes('a'));
+});
+
+test('マークが1つもなければ一覧を出さずに知らせる', () => {
+  const session = run(LISTED, ':marks<CR>');
+  assert.deepEqual(session.markLists, []);
+  assert.deepEqual(session.messages, ['No marks set']);
+});
+
+test(':marks は本文もカーソルも動かさない', () => {
+  const session = run(LISTED, 'ma:marks<CR>', { cursor: pos(1, 3) });
+  assert.equal(session.text, LISTED);
+  assert.equal(session.at, '1:3');
+  assert.equal(session.mode, 'normal');
+});
+
+test('マークが消えた行を指していても一覧は落ちない', () => {
+  // 追従しない割り切りの結果、行番号がバッファ外を指しうる。
+  const session = run('a\nb\nc\nd\ne', 'GmaggdGdd:marks<CR>');
+  assert.equal(session.markLists.length, 1);
+  assert.equal(session.markLists[0]?.length, 2);
+});
+
+/** What `:marks` still lists, which is the readable way to see what was deleted. */
+function remaining(keys: string): string[] {
+  const session = run(LISTED, `${keys}:marks<CR>`);
+  return (session.markLists[0] ?? []).map(entry => entry.name);
+}
+
+test(':delmarks は名指しでマークを消す', () => {
+  assert.deepEqual(remaining('majmbjmc:delmarks b<CR>'), ['a', 'c']);
+});
+
+test(':delmarks は複数の名前を取る', () => {
+  assert.deepEqual(remaining('majmbjmc:delmarks a c<CR>'), ['b']);
+  assert.deepEqual(remaining('majmbjmc:delmarks ac<CR>'), ['b'], '空白なしでも同じ');
+});
+
+test(':delmarks は範囲を取る', () => {
+  assert.deepEqual(remaining('majmbjmc:delmarks a-b<CR>'), ['c']);
+  assert.deepEqual(remaining('majmbjmc:delmarks a-c<CR>'), []);
+});
+
+test(':delmarks! はすべての名前付きマークを消す', () => {
+  assert.deepEqual(remaining('majmbjmc:delmarks!<CR>'), []);
+});
+
+test(':delmarks! は戻り先を残す', () => {
+  // 戻り先は移動が勝手に付け直すもので、消しても意味がない。
+  const names = remaining('jmaG:delmarks!<CR>');
+  assert.deepEqual(names, ['`']);
+  assert.equal(run(LISTED, 'jmaG:delmarks!<CR>``').at, '1:0', '`` はまだ効く');
+});
+
+test('消したマークへは移動しなくなる', () => {
+  assert.equal(run(LISTED, 'majj:delmarks a<CR>`a').at, '2:0', 'カーソルはそのまま');
+  assert.equal(run(LISTED, 'majj`a').at, '0:0', '消す前は戻れる');
+});
+
+test(':delm と省略しても同じ', () => {
+  assert.deepEqual(remaining('majmb:delm a<CR>'), ['b']);
+  assert.deepEqual(remaining('majmb:delm!<CR>'), []);
+});
+
+test(':delmarks は引数がないと断る', () => {
+  const session = run(LISTED, 'ma:delmarks<CR>');
+  assert.deepEqual(session.messages, ['E471: Argument required']);
+  assert.deepEqual(remaining('ma:delmarks<CR>'), ['a'], 'マークは残ったまま');
+});
+
+test(':delmarks! に引数は付けられない', () => {
+  const session = run(LISTED, 'ma:delmarks! a<CR>');
+  assert.match(session.messages[0] ?? '', /^E475: Invalid argument/);
+  assert.deepEqual(remaining('ma:delmarks! a<CR>'), ['a'], '断ったなら消してはいけない');
+});
+
+test('マーク名にならない引数は断る', () => {
+  for (const argument of ['A', '1', 'a-', 'c-a', 'a-1']) {
+    const session = run(LISTED, `ma:delmarks ${argument}<CR>`);
+    assert.match(session.messages[0] ?? '', /^E475: Invalid argument/, argument);
+    assert.deepEqual(remaining(`ma:delmarks ${argument}<CR>`), ['a'], argument);
+  }
+});
+
+test('付けていないマークを消しても何も起きない', () => {
+  const session = run(LISTED, 'ma:delmarks z<CR>');
+  assert.deepEqual(session.messages, []);
+  assert.deepEqual(remaining('ma:delmarks z<CR>'), ['a']);
+});

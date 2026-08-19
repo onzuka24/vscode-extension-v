@@ -69,6 +69,26 @@ export class MarkStore {
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  /** Returns false when there was no such mark, which `:delmarks` does not mind. */
+  public delete(bufferId: string, name: string): boolean {
+    const key = normalizeMarkName(name);
+    if (key === null) return false;
+    return this.byBuffer.get(bufferId)?.delete(key) ?? false;
+  }
+
+  /**
+   * Drops every mark the user set, leaving the jump mark alone: that one is
+   * maintained by movement rather than by hand, and the next jump would set it
+   * again anyway.
+   */
+  public clearNamed(bufferId: string): void {
+    const marks = this.byBuffer.get(bufferId);
+    if (!marks) return;
+    for (const name of [...marks.keys()]) {
+      if (name !== JUMP_MARK) marks.delete(name);
+    }
+  }
+
   /** A view bound to one buffer, which is what motions are handed. */
   public reader(bufferId: string): MarkReader {
     return { get: name => this.get(bufferId, name) };
