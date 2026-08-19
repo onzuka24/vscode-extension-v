@@ -10,13 +10,23 @@ export interface TextBuffer {
   lineAt(line: number): string;
   /** The document's line separator, so edits never mix `\n` into a CRLF file. */
   readonly eol: string;
+  /**
+   * Identifies the document. Anything the engine remembers per file — marks so
+   * far — is keyed by this, so a position recorded in one file cannot be applied
+   * to another.
+   */
+  readonly id: string;
 }
 
 /** In-memory buffer used by the tests. */
 export class LinesBuffer implements TextBuffer {
   private readonly lines: readonly string[];
 
-  public constructor(text: string, public readonly eol: string = '\n') {
+  public constructor(
+    text: string,
+    public readonly eol: string = '\n',
+    public readonly id: string = 'buffer'
+  ) {
     this.lines = text.split(/\r\n|\n/);
   }
 

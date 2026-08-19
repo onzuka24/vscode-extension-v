@@ -21,6 +21,10 @@ export class DocumentBuffer implements TextBuffer {
   public get eol(): string {
     return this.document.eol === vscode.EndOfLine.CRLF ? '\r\n' : '\n';
   }
+
+  public get id(): string {
+    return this.document.uri.toString();
+  }
 }
 
 export function toVsPosition(position: Position): vscode.Position {

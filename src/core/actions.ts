@@ -48,4 +48,18 @@ export type Action =
    * cost a click to dismiss.
    */
   | { readonly type: 'notify'; readonly message: string }
+  /**
+   * `:marks`. The core assembles the rows, including the text of each marked
+   * line, and the adapter decides how to show them — a picker here, but nothing
+   * about the list depends on that choice.
+   */
+  | { readonly type: 'showMarks'; readonly entries: readonly MarkListing[] }
   | { readonly type: 'reveal' };
+
+export interface MarkListing {
+  readonly name: string;
+  readonly line: number;
+  readonly character: number;
+  /** The marked line's text, so the list can be read without jumping first. */
+  readonly text: string;
+}
