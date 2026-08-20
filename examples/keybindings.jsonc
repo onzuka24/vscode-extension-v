@@ -1,37 +1,54 @@
-// エクスプローラーなどのリスト表示を hjkl で操作するためのキーバインドです。
+// エディターの外を Vim 風に操作するためのキーバインドです。
 //
 // これは settings.json ではなく keybindings.json に書きます。
 // コマンドパレットで「基本設定: キーボード ショートカットを開く (JSON)」から開けます。
 //
 // なぜ settings.json ではないのか:
-//   エクスプローラーはツリービューであってテキストエディターではないため、
-//   この拡張機能のエンジン (モード・オペレータ・モーション) は動きません。
-//   打鍵が `type` コマンドを通らないからです。ここでできるのは、VS Code の
-//   list.* コマンドを Vim 風のキーに割り当てることだけです。
+//   エクスプローラーやサイドバーはテキストエディターではないため、この拡張機能の
+//   エンジン (モード・オペレータ・モーション) は動きません。打鍵が `type` コマンドを
+//   通らないからです。ここでできるのは、VS Code のコマンドを Vim 風のキーに
+//   割り当てることだけです。
 //
 // 引き換えに失うもの:
-//   エクスプローラーで文字を打つとその名前のファイルへ飛ぶ「型入力ナビゲーション」が
-//   j k などの文字については効かなくなります。頻繁に使っている場合は、下の
-//   `when` に条件を足すか、該当する行を削ってください。
+//   リストで文字を打つとその名前の項目へ飛ぶ「型入力ナビゲーション」が、割り当てた
+//   文字については効かなくなります。頻繁に使っている場合は該当する行を削ってください。
 [
-  // ---- エクスプローラー: 移動 ----------------------------------------------
-  { "key": "j", "command": "list.focusDown", "when": "filesExplorerFocus && !inputFocus" },
-  { "key": "k", "command": "list.focusUp", "when": "filesExplorerFocus && !inputFocus" },
-  { "key": "h", "command": "list.collapse", "when": "filesExplorerFocus && !inputFocus" },
-  { "key": "l", "command": "list.expand", "when": "filesExplorerFocus && !inputFocus" },
-  { "key": "g g", "command": "list.focusFirst", "when": "filesExplorerFocus && !inputFocus" },
-  { "key": "shift+g", "command": "list.focusLast", "when": "filesExplorerFocus && !inputFocus" },
-  { "key": "ctrl+d", "command": "list.focusPageDown", "when": "filesExplorerFocus && !inputFocus" },
-  { "key": "ctrl+u", "command": "list.focusPageUp", "when": "filesExplorerFocus && !inputFocus" },
+  // ==========================================================================
+  // 1. リストとツリーの移動（エクスプローラー・検索結果・ソース管理など共通）
+  // ==========================================================================
+  // listFocus はエクスプローラーを含むすべてのリストで真になるので、ここ1か所で
+  // 済みます。以前はエクスプローラー用と汎用で同じ内容を二重に持っていました。
+  //
+  // 入力欄では発火しません。ソース管理ビューを開いた直後はフォーカスがコミット
+  // メッセージの入力欄にあるため、そこでは効きません。Tab で一覧へ移ってください。
+  { "key": "j", "command": "list.focusDown", "when": "listFocus && !inputFocus" },
+  { "key": "k", "command": "list.focusUp", "when": "listFocus && !inputFocus" },
+  { "key": "h", "command": "list.collapse", "when": "listFocus && !inputFocus" },
+  { "key": "l", "command": "list.expand", "when": "listFocus && !inputFocus" },
+  { "key": "g g", "command": "list.focusFirst", "when": "listFocus && !inputFocus" },
+  { "key": "shift+g", "command": "list.focusLast", "when": "listFocus && !inputFocus" },
+  { "key": "ctrl+d", "command": "list.focusPageDown", "when": "listFocus && !inputFocus" },
+  { "key": "ctrl+u", "command": "list.focusPageUp", "when": "listFocus && !inputFocus" },
 
-  // ---- エクスプローラー: ファイル操作 --------------------------------------
+  // エクスプローラー以外での Enter。エクスプローラーはファイルとフォルダで動作を
+  // 分けるため、下で別に定義します。
+  { "key": "enter", "command": "list.select", "when": "listFocus && !inputFocus && !filesExplorerFocus" },
+
+  // ==========================================================================
+  // 2. エクスプローラー固有のファイル操作
+  // ==========================================================================
   { "key": "o", "command": "list.select", "when": "filesExplorerFocus && !inputFocus" },
   { "key": "shift+o", "command": "explorer.openToSide", "when": "filesExplorerFocus && !inputFocus" },
   { "key": "a", "command": "explorer.newFile", "when": "filesExplorerFocus && !inputFocus" },
   { "key": "shift+a", "command": "explorer.newFolder", "when": "filesExplorerFocus && !inputFocus" },
-  // enter は対象がファイルかフォルダかで動作を分けます。
+  { "key": "r", "command": "renameFile", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "d", "command": "deleteFile", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "y", "command": "filesExplorer.copy", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "p", "command": "filesExplorer.paste", "when": "filesExplorerFocus && !inputFocus" },
+
+  // Enter は対象がファイルかフォルダかで動作を分けます。
   //
-  // macOS の Explorer は enter が既定で「名前の変更」です (Finder に合わせた挙動)。
+  // macOS の Explorer は Enter が既定で「名前の変更」です (Finder に合わせた挙動)。
   // 下の2つで file / folder の両方を覆うため、既定のリネームは発火しなくなります。
   // 名前の変更は r に割り当ててあります。
   {
@@ -44,128 +61,86 @@
     "command": "list.toggleExpand",
     "when": "filesExplorerFocus && foldersViewVisible && explorerResourceIsFolder && !inputFocus"
   },
-  { "key": "r", "command": "renameFile", "when": "filesExplorerFocus && !inputFocus" },
-  { "key": "d", "command": "deleteFile", "when": "filesExplorerFocus && !inputFocus" },
-  { "key": "y", "command": "filesExplorer.copy", "when": "filesExplorerFocus && !inputFocus" },
-  { "key": "p", "command": "filesExplorer.paste", "when": "filesExplorerFocus && !inputFocus" },
 
-  // ---- エディターとエクスプローラーの往復 ----------------------------------
-  // init.vim の <leader>n (:NvimTreeToggle) にあたる行き来です。
+  // ==========================================================================
+  // 3. エディターへ戻る — ctrl+escape ひとつ
+  // ==========================================================================
+  // Claude Code、エクスプローラー、ソース管理、Git Graph、ターミナル、検索欄。
+  // 居場所を問わず、これで編集に戻れます。
   //
-  // 行き (エディター → ツリー) は settings.json の <leader>n が担当し、
-  // 開いてからツリーにフォーカスします。帰りはここで同じ打鍵として定義します。
-  // スペース→n が、開くときも閉じるときも同じ打鍵になります。
+  // ただし「戻る」の意味が居場所によって2通りあるので、2行に分かれます。
+  // 条件は排他なので、押した場所に応じてどちらか一方だけが動きます。
   //
-  // 行きと帰りで担当が分かれるのは、ツリーの上では打鍵が `type` コマンドを
-  // 通らず、拡張機能側では扱えないためです。
+  // (a) サイドバー・パネル・ターミナル・リストにいる場合。
+  //     エディターグループへフォーカスを移せば戻れます。
   //
-  // 閉じるとフォーカスはエディターへ戻ります。サイドバーを開いたまま
-  // エディターへ戻りたい場合は、下の Escape を使ってください。
-  { "key": "space n", "command": "workbench.action.closeSidebar", "when": "filesExplorerFocus && !inputFocus" },
-
-  // space l はサイドバーを開いたままエディターへ戻ります。ツリーが左、
-  // エディターが右にあるので、エディター内の <leader>l (右のグループへ移動) と
-  // 同じコマンド・同じ打鍵になり、場所を問わず「右へ移る」で通せます。
-  //
-  // サイドバーを右側に配置している場合は space h のほうが自然になります。
-  // 配置に依存しない書き方にしたい場合は workbench.action.focusActiveEditorGroup
-  // に差し替えてください。
-  { "key": "space l", "command": "workbench.action.navigateRight", "when": "filesExplorerFocus && !inputFocus" },
-
-  // Escape も同じくサイドバーを開いたままフォーカスだけ戻します。
-  { "key": "escape", "command": "workbench.action.focusActiveEditorGroup", "when": "filesExplorerFocus && !inputFocus" },
-
-  // ---- Claude Code との往復 ------------------------------------------------
-  // 行きは settings.json の <leader>m と、ここに書く ctrl+escape の2通りです。どちらも
-  // 「サイドバーに開く → 入力欄へフォーカス」を続けて実行するので、閉じている状態からでも
-  // 1打鍵で入れます。2つ実行するために `runCommands` を挟んでいます。
-  //
-  // 帰りに <leader> は使えません。Claude Code の画面は Webview の入力欄で、打鍵が
-  // `type` コマンドを通らないためです。修飾キーのないキーは文字として入力欄に
-  // 入ってしまうので、修飾キー付きの中から選びます。ただし、次のものは使えません。
-  //
-  //   Option (⌥) + 文字   入力欄で特殊文字になる (US 配列で Option+M は µ)
-  //   Cmd+Escape          macOS のシステムショートカット (symbolic hotkey 73) が占有
-  //   Cmd+H               アプリケーションメニューの「隠す」が先に受け取る
-  //   Cmd+J               ターミナル (パネル) の表示切替に使う
-  //
-  // 残ったものの中でいちばん押しやすいのが ctrl+escape なので、往復ともこれ1つに
-  // しています。行きと帰りは条件が排他なので、同じ打鍵が居場所に応じてどちらかに
-  // なります。
-  //
-  // 行き (エディター → Claude Code)。
-  {
-    "key": "ctrl+escape",
-    "command": "runCommands",
-    "args": { "commands": ["claude-vscode.sidebar.open", "claude-vscode.focus"] },
-    "when": "editorTextFocus"
-  },
-
-  // 帰り (Claude Code → エディターへ)。
-  //
-  // 「どこにいるか」を当てずに「エディターへ移る」だけにしています。以前は場所ごとに
-  // 閉じるコマンドを出し分けていましたが、Webview に実際のフォーカスがあるとき
-  // auxiliaryBarFocus / sideBarFocus が立たないため、条件が成立せず戻れませんでした。
-  //
-  // focusActiveEditorGroup は居場所を問わず効くので、Claude Code が左右どちらの
-  // サイドバーにあっても、エディターのタブとして開いていても同じ1行で戻れます。
-  //
-  // 居場所によって「戻る」の意味が2通りあるので、2行に分けます。
-  //
-  // 1. サイドバー・パネル・ターミナル・エクスプローラーなど、エディターの外にいる場合。
-  //    エディターグループへフォーカスを移せば戻れます。
-  //
-  //    ターミナルからも効くのは、focusActiveEditorGroup が VS Code の
-  //    terminal.integrated.commandsToSkipShell の既定一覧に入っているためです。
-  //    一覧にないコマンドはキーごとシェルへ送られます (Ctrl+W 系をターミナルで
-  //    除外しているのは別の理由で、Ctrl+W がシェルでは「単語を削除」だからです)。
+  //     ターミナルからも効くのは、focusActiveEditorGroup が VS Code の
+  //     terminal.integrated.commandsToSkipShell の既定一覧に入っているためです。
+  //     一覧にないコマンドはキーごとシェルへ送られます。
   {
     "key": "ctrl+escape",
     "command": "workbench.action.focusActiveEditorGroup",
     "when": "!editorTextFocus && !activeWebviewPanelId"
   },
 
-  // 2. Webview が「エディターのタブ」として開いていて、その中にいる場合。
-  //    Git Graph が該当します (createWebviewPanel を ViewColumn で開くため)。
+  // (b) Webview が「エディターのタブ」として開いていて、その中にいる場合。
+  //     Git Graph が該当します (createWebviewPanel を ViewColumn で開くため)。
   //
-  //    この場合 focusActiveEditorGroup は効きません。その Webview 自身が
-  //    エディターグループの中にいるので、「今いるグループにフォーカスする」= 何も
-  //    起きない、になります。タブから出る必要があります。
+  //     この場合 (a) は効きません。その Webview 自身がエディターグループの中に
+  //     いるので、「今いるグループにフォーカスする」= 何も起きない、になります。
+  //     タブから出る必要があります。
   //
-  //    activeWebviewPanelId はエディターグループに紐づくキーとして登録されており、
-  //    Webview のタブにフォーカスがあるときだけ立ちます。だから 1 と排他になります。
+  //     activeWebviewPanelId はエディターグループに紐づくキーとして登録されており、
+  //     Webview のタブにフォーカスがあるときだけ立ちます。だから (a) と排他です。
   //
-  //    閉じずに戻りたい場合は workbench.action.previousEditor に差し替えてください。
-  //    ただし直前のタブが別の Webview だと、そちらへ移るだけになります。
+  //     閉じずに戻りたい場合は workbench.action.previousEditor に差し替えて
+  //     ください。ただし直前のタブが別の Webview だと、そちらへ移るだけになります。
   {
     "key": "ctrl+escape",
     "command": "workbench.action.closeActiveEditor",
     "when": "!editorTextFocus && activeWebviewPanelId"
   },
 
-  // パネルを閉じたい場合は VS Code 既定のキーを使ってください。どのサイドバーに
-  // あるかを言い当てる必要がなく、確実です。
-  //   Cmd+B        左のサイドバー
-  //   Cmd+Alt+B    右のサイドバー
+  // ---- ここから下は上の2行と重なる、別の戻り方です ------------------------
+  // ctrl+escape ひとつに絞りたい場合は、この3行を削ってください。動作は覆われています。
+  // 残す価値があるのは、修飾キーなしで押せる (space l) 点と、閉じてから戻れる
+  // (space n) 点です。
   //
-  // どのコンテキストキーが実際に立っているかは、コマンドパレットの
-  // 「Developer: Inspect Context Keys」で確かめられます。
+  // escape はエクスプローラー内でとっさに戻るための逃げ道です。
+  { "key": "escape", "command": "workbench.action.focusActiveEditorGroup", "when": "filesExplorerFocus && !inputFocus" },
 
-  // ---- 検索結果・SCM など他のリストにも同じ移動を ---------------------------
-  // listFocus はエクスプローラーを含むすべてのリストで真になるため、
-  // 上のエクスプローラー用と重複しないよう、ここでは移動だけに絞っています。
-  // ソース管理 (Git)、検索結果、SCM のツリーなどが対象です。
+  // space l は、エディター内の <leader>l (右のグループへ移動) と同じ打鍵・同じ
+  // コマンドです。ツリーが左・エディターが右という配置なら「右へ移る」で通せます。
+  { "key": "space l", "command": "workbench.action.navigateRight", "when": "filesExplorerFocus && !inputFocus" },
+
+  // space n はサイドバーを閉じて戻ります。settings.json の <leader>n (開いて入る) と
+  // 同じ打鍵なので、開くときも閉じるときも同じキーになります。
+  { "key": "space n", "command": "workbench.action.closeSidebar", "when": "filesExplorerFocus && !inputFocus" },
+
+  // ==========================================================================
+  // 4. Claude Code へ行く
+  // ==========================================================================
+  // 戻りは上の ctrl+escape が担当するので、ここは行きだけです。
+  // 「サイドバーに開く → 入力欄へフォーカス」を続けて実行するので、閉じている
+  // 状態からでも1打鍵で入れます。2つ実行するために runCommands を挟んでいます。
   //
-  // ソース管理ビューを開いた直後は、フォーカスがコミットメッセージの入力欄にあります。
-  // そこでは !inputFocus により発火しません (打った文字はメッセージに入ります)。
-  // 変更の一覧へ移ってから使ってください。Tab で移れます。
-  { "key": "j", "command": "list.focusDown", "when": "listFocus && !inputFocus && !filesExplorerFocus" },
-  { "key": "k", "command": "list.focusUp", "when": "listFocus && !inputFocus && !filesExplorerFocus" },
-  { "key": "h", "command": "list.collapse", "when": "listFocus && !inputFocus && !filesExplorerFocus" },
-  { "key": "l", "command": "list.expand", "when": "listFocus && !inputFocus && !filesExplorerFocus" },
-  { "key": "g g", "command": "list.focusFirst", "when": "listFocus && !inputFocus && !filesExplorerFocus" },
-  { "key": "shift+g", "command": "list.focusLast", "when": "listFocus && !inputFocus && !filesExplorerFocus" },
-  { "key": "enter", "command": "list.select", "when": "listFocus && !inputFocus && !filesExplorerFocus" }
+  // 帰りに <leader> は使えません。Claude Code の画面は Webview の入力欄で、打鍵が
+  // `type` コマンドを通らないためです。修飾キーのないキーは文字として入力欄に
+  // 入ってしまうので、修飾キー付きの中から選びます。ただし次のものは使えません。
+  //
+  //   Option (⌥) + 文字   入力欄で特殊文字になる (US 配列で Option+M は µ)
+  //   Cmd+Escape          macOS のシステムショートカット (symbolic hotkey 73) が占有
+  //   Cmd+H               アプリケーションメニューの「隠す」が先に受け取る
+  //   Cmd+J               ターミナル (パネル) の表示切替に使う
+  //
+  // 残ったものの中でいちばん押しやすいのが ctrl+escape なので、行きも帰りも
+  // これ1つにしています。条件が排他なので、居場所に応じてどちらかになります。
+  {
+    "key": "ctrl+escape",
+    "command": "runCommands",
+    "args": { "commands": ["claude-vscode.sidebar.open", "claude-vscode.focus"] },
+    "when": "editorTextFocus"
+  }
 ]
 
 // ============================================================================
@@ -182,5 +157,13 @@
 //   bash:  set -o vi              (~/.bashrc)
 //   zsh:   bindkey -v             (~/.zshrc)
 //
-// なお init.vim の `tnoremap <Esc> <c-\><c-n>` は Neovim 内蔵ターミナルの
-// 設定なので、VS Code のターミナルには対応するものがありません。
+// なお init.vim の tnoremap <Esc> は Neovim 内蔵ターミナルの設定なので、
+// VS Code のターミナルには対応するものがありません。
+//
+// ============================================================================
+// 他の環境で使う場合
+// ============================================================================
+//
+// ctrl+escape は macOS では空いていますが、Windows では OS がスタートメニューに
+// 使っています。Windows でも使うなら別のキー (ctrl+alt+escape など) に
+// 置き換えてください。
