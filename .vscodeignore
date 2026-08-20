@@ -1,0 +1,19 @@
+# VSIX に含めないもの。README と LICENSE、out/src、examples だけを配ります。
+
+.github/**
+.vscode/**
+docs/**
+src/**
+test/**
+out/test/**
+
+# ソースを含めないので、それを指す元ソースマップも意味がありません。
+out/**/*.map
+
+.gitignore
+.vscodeignore
+eslint.config.mjs
+mise.toml
+tsconfig.json
+package-lock.json
+*.vsix

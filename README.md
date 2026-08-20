@@ -28,10 +28,32 @@ VS Code でこのディレクトリを開き、`F5`（または「実行とデ�
 `.vscode/launch.json` の設定により自動で走ります。編集しながら試す場合は、別のターミナルで
 `npm run watch` を実行しておくとインクリメンタルにビルドされます。
 
-検査は `npm run lint`、`npm run typecheck`、`npm test` で実行します。GitHub Actions の CI でも
-同じ3つが、mise.toml で固定したものと同じ Node で走ります。
+検査は `npm run lint`、`npm run typecheck`、`npm test`、`npm run package` で実行します。
+GitHub Actions の CI でも同じものが、mise.toml で固定したものと同じ Node で走ります。
 
-現時点では Marketplace への公開や VSIX の配布は行っていません。
+### VSIX を作って普段使いする
+
+開発ホストを起動せずに常用したい場合は、VSIX を作って入れられます。
+
+```sh
+npm run package                                  # vscode-vim-like-0.1.0.vsix ができる
+code --install-extension vscode-vim-like-0.1.0.vsix
+```
+
+拡張機能ビューの右上「…」→「VSIX からのインストール」からでも入れられます。
+入れ替えるときは同じ手順で上書きされます。外すときは拡張機能ビューから
+「Vim Like」をアンインストールしてください。
+
+CI でも毎回 VSIX を作っています。GitHub Actions の実行結果から `vsix` という成果物を
+落とせるので、手元でビルドせずに任意のコミットの版を試せます。
+
+Marketplace への公開は行っていません。
+
+#### 常用するときの注意
+
+この拡張機能は VS Code 全体で1つしか登録できない `type` コマンドを使います。VSCode Neovim や
+VSCodeVim と**同時には使えません**。どちらか一方を無効にしてください。競合していると、
+起動時にどちらが原因かを名指ししたメッセージが出ます。
 
 ## 操作
 

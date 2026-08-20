@@ -52,3 +52,16 @@ jobs:
       # キーバインドの妥当性やレイヤ違反を見る構造テストも含まれる。
       - name: Test
         run: npm test
+
+      # マニフェストの不備は tsc でもテストでも捕まらない。実際に詰めてみるのが
+      # 唯一の確かめ方なので、CI で毎回作る。
+      - name: Package
+        run: npm run package
+
+      # 任意のコミットの VSIX を、手元でビルドせずに落とせるようにしておく。
+      - name: Upload VSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: '*.vsix'
+          if-no-files-found: error

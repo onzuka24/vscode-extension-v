@@ -10,7 +10,7 @@ npm run compile
 
 Node のバージョンは [mise.toml](mise.toml) で固定しています。CI も同じファイルを読むので、
 手元と CI で版がずれることはありません。版を上げるときは mise.toml を書き換えて、
-下の3つの検査を通してください。
+下の検査を通してください。
 
 VS Code でこのディレクトリを開き `F5` を押すと、拡張機能が有効になった Extension
 Development Host が起動します。編集しながら試す場合は別のターミナルで `npm run watch` を
@@ -22,9 +22,14 @@ Development Host が起動します。編集しながら試す場合は別のタ
 npm run lint       # ESLint（型情報を使う設定）
 npm run typecheck  # tsc --noEmit
 npm test           # コンパイル + node --test
+npm run package    # VSIX を作る（マニフェストの不備はここで初めて出る）
 ```
 
-この3つが CI で走るものと同じです。送る前に手元で通しておくと往復が減ります。
+この4つが CI で走るものと同じです。送る前に手元で通しておくと往復が減ります。
+
+`package` を CI に入れているのは、`main` の指定漏れや `.vscodeignore` の書き過ぎといった
+マニフェストの不備が、型検査でもテストでも捕まらないからです。実際に詰めてみるのが唯一の
+確かめ方です。
 
 ## まず読むもの
 
