@@ -14,11 +14,13 @@ vscode-extension-v/
 │   │   ├── buffer.ts          TextBuffer 抽象と行単位の範囲計算
 │   │   ├── cursor.ts          Normal モードのカーソルクランプ規則
 │   │   ├── scan.ts            文字単位の走査（行をまたぐ前進・後退・文字種）
+│   │   ├── keys.ts            キー表記（<Esc> <CR> <leader> …）の正規化
 │   │   ├── motions.ts         モーション表（h j k l w b e $ gg G f t …）
 │   │   ├── textobjects.ts     テキストオブジェクト（iw aw i( a" …）
-│   │   ├── operators.ts       オペレータ（d c y）と貼り付けの範囲計算
+│   │   ├── operators.ts      オペレータ（d c y > <）と貼り付けの範囲計算
 │   │   ├── registers.ts       レジスタの保管庫
 │   │   ├── marks.ts           マークの保管庫（バッファごと）
+│   │   ├── remap.ts           ユーザー定義のキー置き換えの表と照合
 │   │   ├── parser.ts          キー列 → コマンドオブジェクト
 │   │   ├── excommands.ts      `:` で受け付ける Ex コマンドの表
 │   │   ├── search.ts          パターンの照合と、次の一致の探索
@@ -37,12 +39,28 @@ vscode-extension-v/
 │   └── extension.ts         activate。type の乗っ取りとコマンド・イベントの配線
 │
 ├── test/                    TypeScript で書き、コンパイルして node --test で実行
-│   ├── harness.ts             run(text, keys) — 全テストの入口
+│   ├── harness.ts             run(text, keys) — ふるまいテストの入口
+│   ├── jsonc.ts               examples/ の読み込み（コメントつき JSON）
+│   ├── keySyntax.ts           VS Code が解釈できるキー名の判定
+│   │
 │   ├── buffer.test.ts         範囲計算とクランプ
 │   ├── motions.test.ts        モーション
 │   ├── operators.test.ts      オペレータ・レジスタ・単独コマンド
 │   ├── linewise.test.ts       行単位の操作
 │   ├── visual.test.ts         Visual モードとテキストオブジェクト
+│   ├── indent.test.ts         `>` `<` の字下げ
+│   ├── percent.test.ts        `%` の括弧対応
+│   ├── marks.test.ts          マーク・`:marks`・`:delmarks`
+│   ├── search.test.ts         検索とパターン
+│   ├── searchStyle.test.ts    `editorFind` に切り替えたときの挙動
+│   ├── commandline.test.ts    `:` の Ex コマンド
+│   ├── repeat.test.ts         `.` の繰り返し
+│   ├── editingKeys.test.ts    Backspace / Enter / Delete
+│   ├── remap.test.ts          キーの置き換え
+│   ├── leader.test.ts         leader と複数キーのシーケンス
+│   ├── transcript.test.ts     ターミナル出力の整形
+│   ├── markIcon.test.ts       ガターに描くアイコン
+│   ├── examples.test.ts       examples/ の設定例が実際に読めるか
 │   └── manifest.test.ts       構造を守るテスト（後述）
 │
 ├── docs/                    このフォルダ
