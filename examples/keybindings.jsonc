@@ -101,23 +101,30 @@
     "when": "editorTextFocus"
   },
 
-  // 帰り (Claude Code → 閉じてエディターへ)。
+  // 帰り (Claude Code → エディターへ)。
   //
-  // 閉じるコマンドは開いている場所ごとに違うので、条件も「どの場所にフォーカスが
-  // あるか」で揃えます。順に、エディターのタブ、二次サイドバー (右)、サイドバー (左)
-  // です。3つとも入れておけば、どこに開いていても同じ打鍵で閉じられます。
+  // 「どこにいるか」を当てずに「エディターへ移る」だけにしています。以前は場所ごとに
+  // 閉じるコマンドを出し分けていましたが、Webview に実際のフォーカスがあるとき
+  // auxiliaryBarFocus / sideBarFocus が立たないため、条件が成立せず戻れませんでした。
   //
-  // ビューの id (`focusedView == 'claudeVSCodeSidebarSecondary'` など) では判定しません。
-  // id は場所ではなくビューそのものを指すので、Claude Code の画面を左右のサイドバー間で
-  // 移しても変わりません。すると「左にあるのに右を閉じようとする」というずれが起き、
-  // キーは発火しているのに何も起きない、という形になります。
+  // focusActiveEditorGroup は居場所を問わず効くので、Claude Code が左右どちらの
+  // サイドバーにあっても、エディターのタブとして開いていても同じ1行で戻れます。
   //
-  // `claude-vscode.sideBarActive` は「Claude Code の画面が見えているか」であって、
-  // フォーカスの有無ではありません。これだけで絞るとエディターで打っているあいだも
-  // 真のままなので、場所の条件と組み合わせて初めて「Claude Code にいる」を表せます。
-  { "key": "ctrl+escape", "command": "workbench.action.closeActiveEditor", "when": "activeWebviewPanelId == 'claudeVSCodePanel'" },
-  { "key": "ctrl+escape", "command": "workbench.action.closeAuxiliaryBar", "when": "auxiliaryBarFocus && claude-vscode.sideBarActive" },
-  { "key": "ctrl+escape", "command": "workbench.action.closeSidebar", "when": "sideBarFocus && claude-vscode.sideBarActive" },
+  // ターミナルとエディターを除いているのは、そこでは戻る必要がないからです。
+  // 逆に言えば、この1行はエクスプローラーや Git Graph からの復帰にも効きます。
+  {
+    "key": "ctrl+escape",
+    "command": "workbench.action.focusActiveEditorGroup",
+    "when": "!editorTextFocus && !terminalFocus"
+  },
+
+  // パネルを閉じたい場合は VS Code 既定のキーを使ってください。どのサイドバーに
+  // あるかを言い当てる必要がなく、確実です。
+  //   Cmd+B        左のサイドバー
+  //   Cmd+Alt+B    右のサイドバー
+  //
+  // どのコンテキストキーが実際に立っているかは、コマンドパレットの
+  // 「Developer: Inspect Context Keys」で確かめられます。
 
   // ---- 検索結果・SCM など他のリストにも同じ移動を ---------------------------
   // listFocus はエクスプローラーを含むすべてのリストで真になるため、
