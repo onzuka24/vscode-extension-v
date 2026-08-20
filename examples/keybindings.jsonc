@@ -110,12 +110,37 @@
   // focusActiveEditorGroup は居場所を問わず効くので、Claude Code が左右どちらの
   // サイドバーにあっても、エディターのタブとして開いていても同じ1行で戻れます。
   //
-  // ターミナルとエディターを除いているのは、そこでは戻る必要がないからです。
-  // 逆に言えば、この1行はエクスプローラーや Git Graph からの復帰にも効きます。
+  // 居場所によって「戻る」の意味が2通りあるので、2行に分けます。
+  //
+  // 1. サイドバー・パネル・ターミナル・エクスプローラーなど、エディターの外にいる場合。
+  //    エディターグループへフォーカスを移せば戻れます。
+  //
+  //    ターミナルからも効くのは、focusActiveEditorGroup が VS Code の
+  //    terminal.integrated.commandsToSkipShell の既定一覧に入っているためです。
+  //    一覧にないコマンドはキーごとシェルへ送られます (Ctrl+W 系をターミナルで
+  //    除外しているのは別の理由で、Ctrl+W がシェルでは「単語を削除」だからです)。
   {
     "key": "ctrl+escape",
     "command": "workbench.action.focusActiveEditorGroup",
-    "when": "!editorTextFocus && !terminalFocus"
+    "when": "!editorTextFocus && !activeWebviewPanelId"
+  },
+
+  // 2. Webview が「エディターのタブ」として開いていて、その中にいる場合。
+  //    Git Graph が該当します (createWebviewPanel を ViewColumn で開くため)。
+  //
+  //    この場合 focusActiveEditorGroup は効きません。その Webview 自身が
+  //    エディターグループの中にいるので、「今いるグループにフォーカスする」= 何も
+  //    起きない、になります。タブから出る必要があります。
+  //
+  //    activeWebviewPanelId はエディターグループに紐づくキーとして登録されており、
+  //    Webview のタブにフォーカスがあるときだけ立ちます。だから 1 と排他になります。
+  //
+  //    閉じずに戻りたい場合は workbench.action.previousEditor に差し替えてください。
+  //    ただし直前のタブが別の Webview だと、そちらへ移るだけになります。
+  {
+    "key": "ctrl+escape",
+    "command": "workbench.action.closeActiveEditor",
+    "when": "!editorTextFocus && activeWebviewPanelId"
   },
 
   // パネルを閉じたい場合は VS Code 既定のキーを使ってください。どのサイドバーに
