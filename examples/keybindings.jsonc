@@ -154,8 +154,18 @@
   // ---- 検索結果・SCM など他のリストにも同じ移動を ---------------------------
   // listFocus はエクスプローラーを含むすべてのリストで真になるため、
   // 上のエクスプローラー用と重複しないよう、ここでは移動だけに絞っています。
+  // ソース管理 (Git)、検索結果、SCM のツリーなどが対象です。
+  //
+  // ソース管理ビューを開いた直後は、フォーカスがコミットメッセージの入力欄にあります。
+  // そこでは !inputFocus により発火しません (打った文字はメッセージに入ります)。
+  // 変更の一覧へ移ってから使ってください。Tab で移れます。
   { "key": "j", "command": "list.focusDown", "when": "listFocus && !inputFocus && !filesExplorerFocus" },
-  { "key": "k", "command": "list.focusUp", "when": "listFocus && !inputFocus && !filesExplorerFocus" }
+  { "key": "k", "command": "list.focusUp", "when": "listFocus && !inputFocus && !filesExplorerFocus" },
+  { "key": "h", "command": "list.collapse", "when": "listFocus && !inputFocus && !filesExplorerFocus" },
+  { "key": "l", "command": "list.expand", "when": "listFocus && !inputFocus && !filesExplorerFocus" },
+  { "key": "g g", "command": "list.focusFirst", "when": "listFocus && !inputFocus && !filesExplorerFocus" },
+  { "key": "shift+g", "command": "list.focusLast", "when": "listFocus && !inputFocus && !filesExplorerFocus" },
+  { "key": "enter", "command": "list.select", "when": "listFocus && !inputFocus && !filesExplorerFocus" }
 ]
 
 // ============================================================================
