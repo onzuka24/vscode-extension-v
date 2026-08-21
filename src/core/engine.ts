@@ -7,6 +7,8 @@ import {
   OperatorName,
   Target,
   applyOperator,
+  CaseOperatorName,
+  isCaseOperator,
   endOfInsertedText,
   isIndentOperator,
   paste,
@@ -14,6 +16,7 @@ import {
   targetLines
 } from './operators';
 import { ExCommandTable, parseExCommand } from './excommands';
+import { applyCase, transformCase } from './case';
 import { SearchState, compilePattern, wordSearchAt } from './search';
 import { SPECIAL_KEYS, describeKeys, isSpecialKey } from './keys';
 import { Command, awaitsLiteralKey, parse } from './parser';
@@ -635,6 +638,7 @@ export class VimEngine {
     if (!target) return this.failedMotion(state, command);
 
     if (isIndentOperator(operator)) return this.runIndent(state, command, buffer, target, operator);
+    if (isCaseOperator(operator)) return this.runCase(state, buffer, target, operator);
 
     const origin = isVisual(state.mode) ? startOf(target, cursor) : cursor;
     const outcome = applyOperator(operator, buffer, target, origin);
@@ -649,6 +653,41 @@ export class VimEngine {
     return {
       state: {
         mode: outcome.mode,
+        pendingKeys: '',
+        remapPending: [],
+        desiredColumn: outcome.cursor.character,
+        visualAnchor: null,
+        commandLine: null
+      },
+      actions,
+      handled: true
+    };
+  }
+
+  /**
+   * `gu` `gU` `g~`, and the Visual-mode `u` `U` `~` the parser turns into them.
+   *
+   * No register is written and the mode is always Normal afterwards, which is why
+   * these do not go through `applyOperator`: sharing that path would mean giving
+   * it two more things to not do.
+   */
+  private runCase(
+    state: VimState,
+    buffer: TextBuffer,
+    target: Target,
+    operator: CaseOperatorName
+  ): EngineResult {
+    const outcome = applyCase(operator, buffer, target, isVisual(state.mode));
+
+    const actions: Action[] = [];
+    if (outcome.edit) actions.push({ type: 'edit', range: outcome.edit.range, text: outcome.edit.text });
+    actions.push({ type: 'setCursor', position: outcome.cursor, toFirstNonBlank: outcome.toFirstNonBlank });
+    actions.push({ type: 'setMode', mode: 'normal' });
+    actions.push({ type: 'reveal' });
+
+    return {
+      state: {
+        mode: 'normal',
         pendingKeys: '',
         remapPending: [],
         desiredColumn: outcome.cursor.character,
@@ -1057,9 +1096,7 @@ export class VimEngine {
     const end = Math.min(cursor.character + command.count, text.length);
     if (end === cursor.character) return this.unchanged(state);
 
-    const flipped = [...text.slice(cursor.character, end)]
-      .map(char => (char === char.toLowerCase() ? char.toUpperCase() : char.toLowerCase()))
-      .join('');
+    const flipped = transformCase(text.slice(cursor.character, end), 'g~');
     const position = pos(cursor.line, Math.min(end, maxColumn(buffer, cursor.line, 'normal')));
 
     return {

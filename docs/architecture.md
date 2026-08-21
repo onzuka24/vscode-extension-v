@@ -17,7 +17,8 @@ vscode-extension-v/
 │   │   ├── keys.ts            キー表記（<Esc> <CR> <leader> …）の正規化
 │   │   ├── motions.ts         モーション表（h j k l w b e $ gg G f t …）
 │   │   ├── textobjects.ts     テキストオブジェクト（iw aw i( a" …）
-│   │   ├── operators.ts      オペレータ（d c y > <）と貼り付けの範囲計算
+│   │   ├── operators.ts       オペレータの分類（d c y / > < / gu gU g~）と貼り付け
+│   │   ├── case.ts            大文字小文字の変換（gu gU g~ と Visual の u U ~）
 │   │   ├── registers.ts       レジスタの保管庫
 │   │   ├── marks.ts           マークの保管庫（バッファごと）
 │   │   ├── remap.ts           ユーザー定義のキー置き換えの表と照合
@@ -49,6 +50,7 @@ vscode-extension-v/
 │   ├── linewise.test.ts       行単位の操作
 │   ├── visual.test.ts         Visual モードとテキストオブジェクト
 │   ├── indent.test.ts         `>` `<` の字下げ
+│   ├── case.test.ts           `gu` `gU` `g~` と Visual の `u` `U` `~`
 │   ├── percent.test.ts        `%` の括弧対応
 │   ├── marks.test.ts          マーク・`:marks`・`:delmarks`
 │   ├── search.test.ts         検索とパターン
@@ -419,6 +421,22 @@ stateDiagram-v2
 
 テキストオブジェクト（`iw` `a(`）も同じ「範囲を返すもの」として扱われるため、`diw` も `viw` も
 オペレータから見れば区別がありません。
+
+### オペレータを3種類に分けている理由
+
+`OperatorName` は3つに分かれます。`d` `c` `y` はバッファを編集してレジスタを埋めるもの、
+`>` `<` は行を動かすだけで編集を返さないもの（下げ幅は VS Code が決めるため）、
+`gu` `gU` `g~` は文字を書き換えるがレジスタに触らず Insert にも入らないものです。
+
+分けているのは、`applyOperator` に「レジスタを埋めない」「モードを変えない」という
+**しないこと**を足していくと、条件分岐が実装の中心になってしまうためです。3つとも
+「範囲を受け取って結果を返す」形は共通なので、範囲の決め方（モーション・テキストオブジェクト・
+Visual の選択）は3種類すべてで共有されています。この形のおかげで、issue #25 で Visual モードの
+`u` `U` `~` を足す作業は、パーサで `u` を `gu` に読み替えるだけで済みました。
+
+大文字小文字の変換だけは、カーソルの着地点が Normal と Visual で違います。インデントのある行で
+`guu` は先頭の非空白へ、`Vu` は列0へ着きます。Vim 9.1 で実測した差であり、推測できないので
+`applyCase` は `fromVisual` を引数で受け取ります。
 
 ## Vim と VS Code のカーソルの差
 
