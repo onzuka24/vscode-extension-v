@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
+import { compileExCommands, parseExCommand } from '../src/core/excommands';
 import { RemapConfiguration, RemapRule, RemapTable } from '../src/core/remap';
 import { run } from './harness';
 import { parseJsonc } from './jsonc';
@@ -17,6 +18,7 @@ const source = readFileSync(path.join(ROOT, 'examples', 'settings.jsonc'), 'utf8
 
 interface Settings {
   'vimLike.leader': string;
+  'vimLike.exCommands': Record<string, string[]>;
   'vimLike.normalModeKeyBindings': RemapRule[];
   'vimLike.visualModeKeyBindings': RemapRule[];
 }
@@ -63,6 +65,12 @@ test('テンプレートの leader マッピングが発火する', () => {
     'workbench.view.explorer',
     'workbench.files.action.focusFilesExplorer'
   ]);
+});
+
+test('テンプレートの Ex コマンドが読み込める', () => {
+  const { table, problems } = compileExCommands(settings['vimLike.exCommands']);
+  assert.deepEqual(problems, []);
+  assert.deepEqual(parseExCommand('gg', table), { kind: 'commands', commands: ['git-graph.view'] });
 });
 
 test('テンプレートの Visual モード側も効く', () => {

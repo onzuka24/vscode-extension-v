@@ -13,7 +13,7 @@ import {
   resolveMotionTarget,
   targetLines
 } from './operators';
-import { parseExCommand } from './excommands';
+import { ExCommandTable, parseExCommand } from './excommands';
 import { SearchState, SearchStyle, compilePattern, wordSearchAt } from './search';
 import { SPECIAL_KEYS, describeKeys, isSpecialKey } from './keys';
 import { Command, awaitsLiteralKey, parse } from './parser';
@@ -112,6 +112,8 @@ export class VimEngine {
   private readonly registers = new RegisterStore();
   private readonly marks = new MarkStore();
   private remaps: RemapTable = RemapTable.empty();
+  /** `:` names the user added, kept beside the built-in table. */
+  private exCommands: ExCommandTable = {};
   /** The pattern `n`, `N` and a bare `/` repeat. Outlives any single keystroke. */
   private lastSearch: SearchState | null = null;
   private searchStyle: SearchStyle = 'statusBar';
@@ -133,6 +135,10 @@ export class VimEngine {
   /** The marks set in one buffer, for whatever wants to draw them. */
   public listMarks(bufferId: string): MarkEntry[] {
     return this.marks.list(bufferId);
+  }
+
+  public setExCommands(table: ExCommandTable): void {
+    this.exCommands = table;
   }
 
   public setRemaps(table: RemapTable): void {
@@ -380,7 +386,7 @@ export class VimEngine {
   }
 
   private runExCommand(state: VimState, line: CommandLineState, buffer: TextBuffer): EngineResult {
-    const parsed = parseExCommand(line.text);
+    const parsed = parseExCommand(line.text, this.exCommands);
     const closed = this.leaveCommandLine(state, 'normal');
     const actions: Action[] = [...closed.actions];
 

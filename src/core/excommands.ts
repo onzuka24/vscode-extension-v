@@ -11,6 +11,12 @@
  * Note that a remap can call a VS Code command directly, so `:w` is not the only
  * way to save. This exists for the reflex of typing `:w`, not as the mechanism
  * behind `<leader>s`.
+ *
+ * Names beyond the built-in ones come from the user's own table
+ * (`vimLike.exCommands`). Anything that belongs to another extension — opening
+ * Git Graph, say — lives there rather than here: this extension has no business
+ * knowing the command IDs of tools it does not ship with, and a built-in list
+ * would have to grow with every user's favourite.
  */
 
 export type ExCommand =
@@ -78,7 +84,59 @@ const COMMANDS: Readonly<Record<string, readonly string[]>> = {
   tabprevious: ['workbench.action.previousEditor']
 };
 
-export function parseExCommand(input: string): ExCommand {
+/** User-defined `:` names, each mapping to the VS Code commands it runs. */
+export type ExCommandTable = Readonly<Record<string, readonly string[]>>;
+
+/** Names the built-in table already owns, which a user entry may not shadow. */
+const RESERVED: ReadonlySet<string> = new Set([...Object.keys(COMMANDS), 'marks', 'delmarks', 'delm']);
+
+const VALID_NAME = /^[a-zA-Z][a-zA-Z0-9]*!?$/;
+
+/**
+ * Validates a user's table. Entries are dropped rather than half-accepted, and
+ * every rejection is reported: a `:` command that silently does nothing is
+ * indistinguishable from a typo in the name.
+ */
+export function compileExCommands(config: Readonly<Record<string, unknown>>): {
+  table: ExCommandTable;
+  problems: string[];
+} {
+  const table: Record<string, readonly string[]> = {};
+  const problems: string[] = [];
+
+  for (const [name, value] of Object.entries(config)) {
+    const where = `vimLike.exCommands["${name}"]`;
+
+    if (!VALID_NAME.test(name)) {
+      problems.push(`${where}: 名前は英字で始まり、英数字と末尾の ! だけが使えます。`);
+      continue;
+    }
+    // Shadowing `:w` would be a trap, so the built-ins always win.
+    if (RESERVED.has(name)) {
+      problems.push(`${where}: この名前は既に使われています。別の名前にしてください。`);
+      continue;
+    }
+    if (!isCommandList(value)) {
+      problems.push(`${where}: 実行する VS Code のコマンド ID を1つ以上並べてください。`);
+      continue;
+    }
+
+    table[name] = [...value];
+  }
+
+  return { table, problems };
+}
+
+/** The value comes straight from settings.json, so nothing about it is assumed. */
+function isCommandList(value: unknown): value is readonly string[] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((item: unknown) => typeof item === 'string' && item !== '')
+  );
+}
+
+export function parseExCommand(input: string, custom: ExCommandTable = {}): ExCommand {
   const text = input.trim();
   if (text === '') return { kind: 'none' };
 
@@ -94,6 +152,9 @@ export function parseExCommand(input: string): ExCommand {
 
   const commands = COMMANDS[text];
   if (commands) return { kind: 'commands', commands };
+
+  const userCommands = custom[text];
+  if (userCommands) return { kind: 'commands', commands: userCommands };
 
   // Arguments are not supported, so `:w other.txt` must not silently save the
   // file it is looking at under the name the user believes they typed.

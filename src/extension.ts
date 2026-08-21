@@ -7,6 +7,7 @@ import { ModeStatusBar } from './adapter/statusBar';
 import { TerminalBridge } from './adapter/terminal';
 import { EngineResult, VimEngine, VimState, createState, describePending, withExternalCursor } from './core/engine';
 import { DEFAULT_LEADER, SPECIAL_KEYS } from './core/keys';
+import { compileExCommands } from './core/excommands';
 import { RemapRule, RemapTable } from './core/remap';
 import { Mode } from './core/types';
 
@@ -340,6 +341,10 @@ function loadRemaps(): void {
 
   engine.setRemaps(table);
   leader = table.leader;
+
+  const ex = compileExCommands(settings.get<Record<string, string[]>>('exCommands', {}));
+  engine.setExCommands(ex.table);
+  problems.push(...ex.problems);
 
   if (problems.length > 0) {
     void vscode.window.showWarningMessage(
