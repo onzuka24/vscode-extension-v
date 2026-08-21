@@ -10,9 +10,18 @@ export type EditOperatorName = 'd' | 'c' | 'y';
 /** Operators that only shift lines. The editor decides by how much, so these produce no edit. */
 export type IndentOperatorName = '>' | '<';
 
-export type OperatorName = EditOperatorName | IndentOperatorName;
+/**
+ * Operators that rewrite characters in place. Unlike `d` `c` `y` they fill no
+ * register and never enter Insert mode, so they take a path of their own; see
+ * `case.ts`. These are the only operators spelled with two keys.
+ */
+export type CaseOperatorName = 'gu' | 'gU' | 'g~';
 
-export const OPERATORS: ReadonlySet<string> = new Set<OperatorName>(['d', 'c', 'y', '>', '<']);
+export type OperatorName = EditOperatorName | IndentOperatorName | CaseOperatorName;
+
+export const OPERATORS: ReadonlySet<string> = new Set<OperatorName>([
+  'd', 'c', 'y', '>', '<', 'gu', 'gU', 'g~'
+]);
 
 export function isOperator(key: string): key is OperatorName {
   return OPERATORS.has(key);
@@ -20,6 +29,10 @@ export function isOperator(key: string): key is OperatorName {
 
 export function isIndentOperator(operator: OperatorName): operator is IndentOperatorName {
   return operator === '>' || operator === '<';
+}
+
+export function isCaseOperator(operator: OperatorName): operator is CaseOperatorName {
+  return operator === 'gu' || operator === 'gU' || operator === 'g~';
 }
 
 /**

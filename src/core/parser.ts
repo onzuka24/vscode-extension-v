@@ -1,5 +1,5 @@
 import { isMotionPrefix, lookupMotion } from './motions';
-import { OperatorName, isOperator } from './operators';
+import { CaseOperatorName, OPERATORS, OperatorName, isOperator } from './operators';
 import { isTextObjectKey } from './textobjects';
 import { Mode } from './types';
 
@@ -53,7 +53,27 @@ const NORMAL_ACTIONS = new Set([
 ]);
 
 /** Visual-mode commands. `d`/`c`/`y` are handled as operators over the selection. */
-const VISUAL_ACTIONS = new Set(['x', 's', 'p', 'P', 'o', 'v', 'V', 'J', '~']);
+const VISUAL_ACTIONS = new Set(['x', 's', 'p', 'P', 'o', 'v', 'V', 'J']);
+
+/**
+ * Visual-mode `u` `U` `~`. They become the case operators rather than actions of
+ * their own, because the selection is already the target — exactly as it is for
+ * `d`, `c` and `y`. Doing it here is also what keeps Visual `u` from reaching the
+ * `u` that means undo in Normal mode.
+ */
+const VISUAL_CASE_OPERATORS: Readonly<Record<string, CaseOperatorName>> = {
+  u: 'gu',
+  U: 'gU',
+  '~': 'g~'
+};
+
+/**
+ * First keys of the operators spelled with two keys (`gu`, `gU`, `g~`). The same
+ * `g` also begins the `gg` motion, so a lone `g` decides nothing and has to wait.
+ */
+const OPERATOR_PREFIXES: ReadonlySet<string> = new Set(
+  [...OPERATORS].filter(name => name.length > 1).map(name => name[0]!)
+);
 
 const ACTIONS_WITH_ARGUMENT = new Set(['r', 'm']);
 
@@ -78,6 +98,15 @@ class Scanner {
 
   public atEnd(): boolean {
     return this.index >= this.keys.length;
+  }
+
+  /** True when `text` is exactly what comes next. */
+  public startsWith(text: string): boolean {
+    return this.keys.startsWith(text, this.index);
+  }
+
+  public skip(count: number): void {
+    this.index += count;
   }
 
   /** A leading `0` is the motion, never a count, so it is left for the caller. */
@@ -135,6 +164,10 @@ function parseNormal(scanner: Scanner, base: Command): ParseResult {
 
   if (isOperator(key)) return parseOperator(scanner, base, key);
 
+  const twoKey = twoKeyOperator(scanner, key);
+  if (twoKey === 'pending') return PENDING;
+  if (twoKey) return parseOperator(scanner, base, twoKey);
+
   if (ACTIONS_WITH_ARGUMENT.has(key)) {
     const argument = scanner.next();
     if (argument === undefined) return PENDING_LITERAL;
@@ -161,6 +194,19 @@ function parseVisual(scanner: Scanner, base: Command): ParseResult {
     return complete({ ...base, operator: key });
   }
 
+  const twoKey = twoKeyOperator(scanner, key);
+  if (twoKey === 'pending') return PENDING;
+  if (twoKey) {
+    if (!scanner.atEnd()) return INVALID;
+    return complete({ ...base, operator: twoKey });
+  }
+
+  const caseOperator = VISUAL_CASE_OPERATORS[key];
+  if (caseOperator !== undefined) {
+    if (!scanner.atEnd()) return INVALID;
+    return complete({ ...base, operator: caseOperator });
+  }
+
   if (TEXT_OBJECT_PREFIXES.has(key)) {
     const object = scanner.next();
     if (object === undefined) return PENDING;
@@ -178,6 +224,24 @@ function parseVisual(scanner: Scanner, base: Command): ParseResult {
   return parseMotion(scanner, base);
 }
 
+/**
+ * Consumes the second key of a two-key operator, if that is what this is.
+ *
+ * `'pending'` means the first key could still become one but the second has not
+ * arrived; `undefined` means it is something else entirely and the caller should
+ * carry on. Nothing is consumed in either of those cases.
+ */
+function twoKeyOperator(scanner: Scanner, key: string): OperatorName | 'pending' | undefined {
+  if (!OPERATOR_PREFIXES.has(key)) return undefined;
+
+  const second = scanner.peek();
+  if (second === undefined) return 'pending';
+  if (!isOperator(key + second)) return undefined;
+
+  scanner.next();
+  return key + second as OperatorName;
+}
+
 function parseOperator(scanner: Scanner, base: Command, operator: OperatorName): ParseResult {
   const innerCount = scanner.readCount();
   const command: Command = {
@@ -190,9 +254,12 @@ function parseOperator(scanner: Scanner, base: Command, operator: OperatorName):
   const key = scanner.peek();
   if (key === undefined) return PENDING;
 
-  // The operator doubled (`dd`) means whole lines.
-  if (key === operator) {
-    scanner.next();
+  // The operator doubled means whole lines. For a two-key operator it is the last
+  // key that repeats (`guu`), and Vim accepts the whole operator twice as well
+  // (`gugu`), so both spellings are taken.
+  const doubled = key === operator[operator.length - 1] ? 1 : scanner.startsWith(operator) ? operator.length : 0;
+  if (doubled > 0) {
+    scanner.skip(doubled);
     if (!scanner.atEnd()) return INVALID;
     return complete({ ...command, linewise: true });
   }
