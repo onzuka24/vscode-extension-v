@@ -118,6 +118,17 @@
           "default": " ",
           "markdownDescription": "キー割り当ての `<leader>` が指すキーです。1文字か `<Space>` を指定します (`mapleader` 相当、既定値はスペース)。"
         },
+        "vimLike.exCommands": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "`:` で使える名前を足します。値は実行する VS Code のコマンド ID の並びです。\n\n```json\n{\n  \"gg\": [\"git-graph.view\"],\n  \"blame\": [\"gitlens.toggleFileBlame\"]\n}\n```\n\n他の拡張機能のコマンドはここに書きます。`:w` などの組み込みの名前は上書きできません (取り違えると保存できなくなるため)。",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
         "vimLike.normalModeKeyBindings": {
           "type": "array",
           "default": [],

@@ -11,6 +11,13 @@
   // let mapleader="\<space>"
   "vimLike.leader": " ",
 
+  // `:` で使える名前を足せます。他の拡張機能のコマンドはここに書きます
+  // (この拡張機能の組み込みの表には、同梱していないツールの ID を入れません)。
+  // :w などの組み込みの名前は上書きできません。
+  "vimLike.exCommands": {
+    "gg": ["git-graph.view"]
+  },
+
   "vimLike.normalModeKeyBindings": [
     // ---- 移動キーの置き換え -------------------------------------------------
     // nnoremap H ^
