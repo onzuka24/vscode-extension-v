@@ -63,10 +63,6 @@ test('テンプレートの leader マッピングが発火する', () => {
     'workbench.view.explorer',
     'workbench.files.action.focusFilesExplorer'
   ]);
-  assert.deepEqual(run('abc', ' m', { remaps }).commands, [
-    'claude-vscode.sidebar.open',
-    'claude-vscode.focus'
-  ]);
 });
 
 test('テンプレートの Visual モード側も効く', () => {

@@ -81,35 +81,7 @@
     // nnoremap <leader>z zi
     { "before": ["<leader>", "z"], "commands": ["editor.toggleFold"] },
     // map <leader>/ gc
-    { "before": ["<leader>", "/"], "commands": ["editor.action.commentLine"] },
-
-    // ---- AI アシスタントへ移動 ----------------------------------------------
-    // Claude Code をサイドバーに開いて、入力欄へフォーカスします。
-    // 閉じている状態からでも開くよう、open 系のコマンドを先に呼んでいます
-    // (focus だけでは、開いていないときに何も起きない可能性があります)。
-    //
-    // 開く場所は好みで差し替えられます。
-    //   claude-vscode.sidebar.open        サイドバーに開く (下の設定)
-    //   claude-vscode.editor.open         新しいタブに開く
-    //   claude-vscode.primaryEditor.open  メインのエディター領域に開く
-    //   claude-vscode.window.open         別ウィンドウに開く
-    //   claude-vscode.editor.openLast     前回の場所に開き直す
-    //
-    // これは行き (エディター → Claude Code) だけです。<leader>m で戻ることは
-    // できません。Claude Code の画面は Webview の入力欄で、スペースを打つと
-    // 文字が入ってしまうためです。
-    //
-    // 往復には examples/keybindings.jsonc の Ctrl+Alt+M を使ってください。
-    // Claude Code 自身は Cmd+Escape に往復を割り当てていますが、macOS の
-    // システムショートカットが Cmd+Escape を占有しているため届きません。
-    {
-      "before": ["<leader>", "m"],
-      "commands": ["claude-vscode.sidebar.open", "claude-vscode.focus"]
-    }
-
-    // GitHub Copilot Chat を使う場合はこちらを足してください。コマンド自体は
-    // VS Code 本体に存在します (拡張機能が入っていなければ何も起きません)。
-    // { "before": ["<leader>", "M"], "commands": ["workbench.action.chat.open"] }
+    { "before": ["<leader>", "/"], "commands": ["editor.action.commentLine"] }
   ],
 
   "vimLike.visualModeKeyBindings": [
@@ -150,6 +122,13 @@
 //     editor.action.commentLine は現在行 (Visual では選択範囲) を対象にします。
 //     `gcip` のようにモーションと組み合わせる形は入れていません。行と選択範囲の
 //     トグルで足りているためで、必要になれば改めて起票します。
+//
+// 方向移動で足りるので、割り当てないと決めたもの
+//   Claude Code や GitHub Copilot Chat のパネルを開くキー
+//     Ctrl+W + hjkl の方向移動でどのパネルにも入れるので、AI パネル専用のキーは
+//     置いていません。エディターへ戻るキーだけは examples/keybindings.jsonc に
+//     あります (Git Graph のようにエディタータブとして開く画面は、方向移動で
+//     出られないため)。
 //
 // 置き換え先がないもの
 //   nnoremap <leader>u :-tabnew<enter>    現在のタブの手前に開く相当がありません

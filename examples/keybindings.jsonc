@@ -115,34 +115,7 @@
 
   // space n はサイドバーを閉じて戻ります。settings.json の <leader>n (開いて入る) と
   // 同じ打鍵なので、開くときも閉じるときも同じキーになります。
-  { "key": "space n", "command": "workbench.action.closeSidebar", "when": "filesExplorerFocus && !inputFocus" },
-
-  // ==========================================================================
-  // 4. Claude Code へ行く
-  // ==========================================================================
-  // 戻りは上の ctrl+escape が担当するので、ここは行きだけです。
-  // 「サイドバーに開く → 入力欄へフォーカス」を続けて実行するので、閉じている
-  // 状態からでも1打鍵で入れます。2つ実行するために runCommands を挟んでいます。
-  //
-  // 帰りに <leader> は使えません。Claude Code の画面は Webview の入力欄で、打鍵が
-  // `type` コマンドを通らないためです。修飾キーのないキーは文字として入力欄に
-  // 入ってしまうので、修飾キー付きの中から選びます。ただし次のものは使えません。
-  //
-  //   Option (⌥) + 文字   入力欄で特殊文字になる (US 配列で Option+M は µ)
-  //   Cmd+Escape          macOS のシステムショートカット (symbolic hotkey 73) が占有
-  //   Ctrl+Space 系       macOS の入力ソース切替が占有 (ctrl / ctrl+alt / ctrl+shift)
-  //   Cmd+H               アプリケーションメニューの「隠す」が先に受け取る
-  //   Cmd+J               ターミナル (パネル) の表示切替に使う
-  //
-  // 残った中から ctrl+; を選びました。記号キーなので入力欄でも文字にならず、
-  // 右手のホーム位置から届きます。行きも帰りもこれ1つで、条件が排他なので
-  // 居場所に応じてどちらかになります。
-  {
-    "key": "ctrl+;",
-    "command": "runCommands",
-    "args": { "commands": ["claude-vscode.sidebar.open", "claude-vscode.focus"] },
-    "when": "editorTextFocus"
-  }
+  { "key": "space n", "command": "workbench.action.closeSidebar", "when": "filesExplorerFocus && !inputFocus" }
 ]
 
 // ============================================================================
