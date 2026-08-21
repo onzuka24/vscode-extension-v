@@ -60,7 +60,8 @@ test('テンプレートの leader マッピングが発火する', () => {
   assert.deepEqual(run('abc', ' s', { remaps }).commands, ['workbench.action.files.save']);
   assert.deepEqual(run('abc', ' wh', { remaps }).commands, ['workbench.action.decreaseViewWidth']);
   assert.deepEqual(run('abc', ' ww', { remaps }).commands, ['workbench.action.evenEditorWidths']);
-  assert.deepEqual(run('abc', ' /', { remaps }).commands, ['editor.action.commentLine']);
+  assert.deepEqual(run('abc', ' /', { remaps }).commands, ['actions.find']);
+  assert.deepEqual(run('abc', ' c', { remaps }).commands, ['editor.action.commentLine']);
   assert.deepEqual(run('abc', ' n', { remaps }).commands, [
     'workbench.view.explorer',
     'workbench.files.action.focusFilesExplorer'
@@ -76,7 +77,8 @@ test('テンプレートの Ex コマンドが読み込める', () => {
 test('テンプレートの Visual モード側も効く', () => {
   const remaps = { ...configuration };
   assert.equal(run('hello world', 'vLd', { remaps }).text, '');
-  assert.deepEqual(run('hello', 'v /', { remaps }).commands, ['editor.action.commentLine']);
+  assert.deepEqual(run('hello', 'v /', { remaps }).commands, ['actions.findWithSelection']);
+  assert.deepEqual(run('hello', 'v c', { remaps }).commands, ['editor.action.commentLine']);
 });
 
 test('テンプレートは Vim 既定のキーを壊さない', () => {
@@ -84,6 +86,25 @@ test('テンプレートは Vim 既定のキーを壊さない', () => {
   assert.equal(run('hello world', 'dw', { remaps }).text, 'world');
   assert.equal(run('one\ntwo', 'dd', { remaps }).text, 'two');
   assert.equal(run('aJb', 'fJ', { remaps }).at, '0:1', 'f の引数は置き換えられない');
+
+  // <leader>c を足しても、オペレータの c は c のままでなければなりません。
+  const changed = run('hello world', 'cw', { remaps });
+  assert.equal(changed.text, ' world');
+  assert.equal(changed.mode, 'insert');
+});
+
+/**
+ * <leader>/ を検索バーに割り当てても、`/` 単体はこちらの検索のままでなければ
+ * なりません。leader はスペースなので両者は打鍵が隣り合っており、片方の割り当てが
+ * もう片方を飲み込むと `d/foo` のような組み合わせが黙って死にます。
+ */
+test('テンプレートの <leader>/ は `/` 自体を奪わない', () => {
+  const remaps = { ...configuration };
+  const opened = run('hello world', '/', { remaps });
+  assert.deepEqual(opened.commands, [], '検索バーは開かない');
+  assert.equal(opened.mode, 'command', 'こちらの検索行が開く');
+
+  assert.equal(run('hello world', 'd/world<CR>', { remaps }).text, 'world', 'オペレータと組める');
 });
 
 function pos0(character: number): { line: number; character: number } {

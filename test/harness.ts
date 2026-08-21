@@ -4,7 +4,6 @@ import { clampCursor, firstNonBlank } from '../src/core/cursor';
 import { VimEngine, VimState, createState, describePending } from '../src/core/engine';
 import { DEFAULT_LEADER } from '../src/core/keys';
 import { RemapConfiguration, RemapTable } from '../src/core/remap';
-import { SearchStyle } from '../src/core/search';
 import { Mode, Position, Range, pos } from '../src/core/types';
 
 /**
@@ -26,8 +25,6 @@ export interface Session {
   readonly indents: readonly IndentRequest[];
   /** Messages the engine asked the editor to show, in order. */
   readonly messages: readonly string[];
-  /** Find-widget requests, under the `editorFind` search style. */
-  readonly finds: readonly FindRequest[];
   /** Half-typed sequence still being held, as the status bar would render it. */
   readonly pending: string;
   /** `:marks` listings the engine produced, in order. */
@@ -44,12 +41,6 @@ export interface Session {
  * request keeps the tests about what the core actually decides: which lines, in
  * which direction, how many steps.
  */
-export interface FindRequest {
-  readonly request: 'open' | 'next' | 'previous';
-  readonly count: number;
-  readonly seed?: Range;
-}
-
 export interface IndentRequest {
   readonly startLine: number;
   readonly endLine: number;
@@ -59,8 +50,6 @@ export interface IndentRequest {
 
 export interface RunOptions {
   readonly cursor?: Position;
-  /** Which search to exercise. Defaults to the extension's own. */
-  readonly search?: SearchStyle;
   readonly eol?: string;
   readonly mode?: Mode;
   readonly remaps?: RemapConfiguration;
@@ -75,13 +64,11 @@ interface Editor {
   commands: string[];
   indents: IndentRequest[];
   messages: string[];
-  finds: FindRequest[];
   markLists: (readonly MarkListing[])[];
 }
 
 export function run(initial: string, keys: string, options: RunOptions = {}): Session {
   const engine = new VimEngine();
-  if (options.search) engine.setSearchStyle(options.search);
   let leader = DEFAULT_LEADER;
   if (options.remaps) {
     const { table, problems } = RemapTable.from(options.remaps);
@@ -100,7 +87,6 @@ export function run(initial: string, keys: string, options: RunOptions = {}): Se
     commands: [],
     indents: [],
     messages: [],
-    finds: [],
     markLists: []
   };
 
@@ -116,7 +102,6 @@ export function run(initial: string, keys: string, options: RunOptions = {}): Se
     commands: editor.commands,
     indents: editor.indents,
     messages: editor.messages,
-    finds: editor.finds,
     pending: describePending(editor.state, leader),
     markLists: editor.markLists
   };
@@ -172,10 +157,6 @@ function apply(editor: Editor, result: { state: VimState; actions: readonly Acti
       editor.indents.push({ startLine, endLine, direction, levels });
     } else if (action.type === 'notify') editor.messages.push(action.message);
     else if (action.type === 'showMarks') editor.markLists.push(action.entries);
-    else if (action.type === 'find') {
-      const { request, count, seed } = action;
-      editor.finds.push(seed === undefined ? { request, count } : { request, count, seed });
-    }
   }
 
   editor.state = result.state;

@@ -54,8 +54,8 @@ body:
       label: Vim との関係
       description: |
         この変更は Vim に近づきますか、離れますか。離れる提案が悪いわけではありません
-        （`vimLike.search` の `editorFind` のように、VS Code に合わせたほうが良い場面はあります）。
-        ただし理由の重さが変わります。
+        （`<leader>t` がターミナルではなく作業バッファを開くように、VS Code に合わせた
+        ほうが良い場面はあります）。ただし理由の重さが変わります。
       options:
         - Vim の挙動に近づける（今がVimと違う）
         - Vim から意図的に離れる（VS Code に合わせたい）

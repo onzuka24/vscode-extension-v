@@ -31,18 +31,6 @@ export type Action =
       readonly levels: number;
     }
   /**
-   * Hands the search to VS Code's own find widget, under the `editorFind` search
-   * style. Which command that means depends on the widget's state, so the choice
-   * lives in the adapter; the core says only what was asked for.
-   */
-  | {
-      readonly type: 'find';
-      readonly request: 'open' | 'next' | 'previous';
-      readonly count: number;
-      /** `*` and `#`: select this first, so the widget searches for that word. */
-      readonly seed?: Range;
-    }
-  /**
    * Something to tell the user, such as an Ex command that does not exist. Shown
    * transiently rather than as a dialog: a typo in the command line should not
    * cost a click to dismiss.

@@ -52,7 +52,6 @@ vscode-extension-v/
 │   ├── percent.test.ts        `%` の括弧対応
 │   ├── marks.test.ts          マーク・`:marks`・`:delmarks`
 │   ├── search.test.ts         検索とパターン
-│   ├── searchStyle.test.ts    `editorFind` に切り替えたときの挙動
 │   ├── commandline.test.ts    `:` の Ex コマンド
 │   ├── repeat.test.ts         `.` の繰り返し
 │   ├── editingKeys.test.ts    Backspace / Enter / Delete
@@ -258,11 +257,11 @@ $(circle-large-outline) NORMAL  ␣w
 `d/foo<CR>` は「パターンを覚えたうえでの `dn`」と同じものになるので、オペレータもカウントも
 Visual モードも、それぞれの実装をもう一度書かずに済みます。リマップの `replay` と同じ仕組みです。
 
-`vimLike.search` を `editorFind` にすると、この経路ごと VS Code の検索バーに置き換わります。
-コアが返すのは `find` アクション（`open` / `next` / `previous`）だけになり、パターンの記憶も
-照合もアダプタの向こう側の VS Code が持ちます。**その代わり `n` はモーションでなくコマンドに
-なるので、`dn` は成立しません**。着地点をコアが知らないまま削除するより、できないと伝えるほうを
-選んでいます（`notify` を返します）。2つの方式の差は README の表にまとめてあります。
+`/` と `?` がこの経路を通ることは設定で変えられません。以前は `vimLike.search` で VS Code の
+検索バーに切り替えられましたが、その方式では打鍵が検索バーへ行くため `n` がモーションでなく
+コマンドになり、`dn` も `d/foo<CR>` も成立しませんでした。**同じキーがモードによって別の文法に
+なる**という構造上の分岐をコアに抱えることになるので、設定ごと取り下げました（#44）。VS Code の
+検索バーは `Cmd+F` と `<leader>/` という別のキーにあり、キー割り当ての一行で済みます。
 
 `n` `N` `*` `#` はモーション表のエントリで、直前の検索を `MotionContext.search` として受け取ります。
 検索の状態はエンジンが持ちます（1打鍵より長生きするため）。モーション自身は文脈の純粋関数のままです。
