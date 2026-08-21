@@ -14,7 +14,7 @@ import {
   targetLines
 } from './operators';
 import { ExCommandTable, parseExCommand } from './excommands';
-import { SearchState, SearchStyle, compilePattern, wordSearchAt } from './search';
+import { SearchState, compilePattern, wordSearchAt } from './search';
 import { SPECIAL_KEYS, describeKeys, isSpecialKey } from './keys';
 import { Command, awaitsLiteralKey, parse } from './parser';
 import { JUMP_MARK, MarkEntry, MarkStore } from './marks';
@@ -116,7 +116,6 @@ export class VimEngine {
   private exCommands: ExCommandTable = {};
   /** The pattern `n`, `N` and a bare `/` repeat. Outlives any single keystroke. */
   private lastSearch: SearchState | null = null;
-  private searchStyle: SearchStyle = 'statusBar';
 
   /**
    * What `.` repeats: the last command that changed the buffer, together with
@@ -127,10 +126,6 @@ export class VimEngine {
   private pendingInsert: { readonly command: Command; readonly start: Position } | null = null;
   /** Guards `lastChange` while `.` re-runs it, so a repeat never records itself. */
   private repeating = false;
-
-  public setSearchStyle(style: SearchStyle): void {
-    this.searchStyle = style;
-  }
 
   /** The marks set in one buffer, for whatever wants to draw them. */
   public listMarks(bufferId: string): MarkEntry[] {
@@ -232,16 +227,6 @@ export class VimEngine {
     // operator, because `d/foo<CR>` is a real Vim command; only a pending literal
     // argument (`f/`, `r/`) takes the key as a character instead.
     if ((key === '/' || key === '?') && !awaitsLiteralKey(state.pendingKeys, state.mode)) {
-      // Under `editorFind` the pattern is typed into VS Code's widget, which our
-      // `type` override never sees, so there is no line to open here. Whatever was
-      // pending is dropped: an operator cannot wait for a search we do not run.
-      if (this.searchStyle === 'editorFind') {
-        return {
-          state: { ...state, pendingKeys: '', remapPending: [] },
-          actions: [{ type: 'find', request: 'open', count: 1 }],
-          handled: true
-        };
-      }
       return this.openCommandLine(state, key);
     }
 
@@ -468,43 +453,6 @@ export class VimEngine {
     return { ...closed, replay: [...state.pendingKeys, 'n'] };
   }
 
-  /**
-   * `n` `N` `*` `#` under the `editorFind` style. VS Code owns both the pattern
-   * and the caret here, so these stop being motions: the engine cannot know where
-   * the match will be, which is exactly why `dn` cannot work in this style.
-   */
-  private findWidgetSearch(
-    state: VimState,
-    command: Command,
-    buffer: TextBuffer,
-    cursor: Position
-  ): EngineResult {
-    const forward = command.motion === 'n' || command.motion === '*';
-    const request = forward ? 'next' : 'previous';
-    const cleared = this.unchanged(state);
-
-    if (command.motion === '*' || command.motion === '#') {
-      const word = wordSearchAt(buffer, cursor);
-      if (!word) {
-        return { ...cleared, actions: [{ type: 'notify', message: 'E348: No string under cursor' }] };
-      }
-      return {
-        ...cleared,
-        actions: [{ type: 'find', request, count: command.count, seed: word.range }, { type: 'reveal' }]
-      };
-    }
-
-    if (command.operator) {
-      // Better to say so than to delete to wherever the caret happens to land.
-      return {
-        ...cleared,
-        actions: [{ type: 'notify', message: 'Vim Like: 検索バー方式では、検索とオペレータを組み合わせられません' }]
-      };
-    }
-
-    return { ...cleared, actions: [{ type: 'find', request, count: command.count }, { type: 'reveal' }] };
-  }
-
   /** A motion that could not move. Only a search says why; the rest are silent. */
   private failedMotion(state: VimState, command: Command): EngineResult {
     return SEARCH_MOTIONS.has(command.motion ?? '') ? this.searchFailure(state) : this.unchanged(state);
@@ -541,10 +489,6 @@ export class VimEngine {
   private dispatch(state: VimState, command: Command, buffer: TextBuffer, cursor: Position): EngineResult {
     // `*` and `#` are `n` over the word under the cursor. Setting the search here
     // rather than inside the motion keeps motions pure functions of their context.
-    if (this.searchStyle === 'editorFind' && command.motion !== undefined && SEARCH_MOTIONS.has(command.motion)) {
-      return this.findWidgetSearch(state, command, buffer, cursor);
-    }
-
     let origin = cursor;
     const wordDirection = command.motion === undefined ? undefined : WORD_SEARCH_MOTIONS[command.motion];
     if (wordDirection) {

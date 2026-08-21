@@ -1,6 +1,6 @@
 import { TextBuffer, lastLine } from './buffer';
 import { charAt, classOf } from './scan';
-import { Position, Range, comparePositions, pos } from './types';
+import { Position, comparePositions, pos } from './types';
 
 /**
  * Searching, as `/` `?` `n` `N` `*` `#` use it.
@@ -13,20 +13,14 @@ import { Position, Range, comparePositions, pos } from './types';
  * what searching in an editor is mostly used for.
  *
  * Searches wrap around the buffer, as Vim's default `wrapscan` does.
+ *
+ * `/` and `?` always come here rather than to VS Code's find widget. Only a
+ * search the engine runs itself can be a motion, which is what makes `d/foo`
+ * and `v/foo` work; a widget that swallows the keystrokes cannot combine with an
+ * operator. VS Code's own find stays reachable on its own keys.
  */
 
 export type SearchDirection = 'forward' | 'backward';
-
-/**
- * Which search to use.
- *
- * `statusBar` is this extension's own: the pattern is typed into the status bar,
- * matching is done here, and `n` behaves as a motion, so `d/foo` and `v/foo`
- * work. `editorFind` hands `/` to VS Code's find widget instead, which brings
- * its own history, regex toggle and match count — at the cost of the keys typed
- * into it never reaching us, so nothing can combine with an operator.
- */
-export type SearchStyle = 'statusBar' | 'editorFind';
 
 export interface SearchState {
   readonly pattern: string;
@@ -107,8 +101,6 @@ export interface WordSearch {
   readonly pattern: string;
   /** Where the word begins. `*` searches from there, not from the caret. */
   readonly start: Position;
-  /** The word itself, for the find widget, which searches for text rather than a pattern. */
-  readonly range: Range;
 }
 
 /**
@@ -136,11 +128,7 @@ export function wordSearchAt(buffer: TextBuffer, from: Position): WordSearch | n
   // Only a word of word characters can carry `\b`; a run of punctuation such as
   // `->` has no word boundary to anchor to.
   const pattern = wordClass === 'word' ? `\\b${escape(word)}\\b` : escape(word);
-  return {
-    pattern,
-    start: pos(from.line, start),
-    range: { start: pos(from.line, start), end: pos(from.line, end) }
-  };
+  return { pattern, start: pos(from.line, start) };
 }
 
 function escape(text: string): string {

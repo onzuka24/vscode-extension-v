@@ -29,8 +29,6 @@ export async function applyActions(
       await vscode.commands.executeCommand(action.command);
     } else if (action.type === 'indent') {
       await applyIndent(editor, action);
-    } else if (action.type === 'find') {
-      await applyFind(editor, action);
     } else if (action.type === 'notify') {
       // Transient by design: a mistyped Ex command should not cost a click.
       vscode.window.setStatusBarMessage(action.message, 4000);
@@ -90,44 +88,6 @@ async function applyIndent(
   for (let level = 0; level < action.levels; level++) {
     await vscode.commands.executeCommand(command);
   }
-}
-
-/**
- * The `editorFind` search style. VS Code's find widget keeps its own state — the
- * term, the regex and whole-word toggles, the history — so the work here is only
- * to ask for the right one of its commands. `*` and `#` have no equivalent, so
- * the word is selected first and the "find next selection" command turns that
- * selection into the search term.
- */
-async function applyFind(editor: vscode.TextEditor, action: Extract<Action, { type: 'find' }>): Promise<void> {
-  if (action.request === 'open') {
-    await vscode.commands.executeCommand('actions.find');
-    return;
-  }
-
-  if (action.seed) {
-    editor.selection = new vscode.Selection(toVsPosition(action.seed.start), toVsPosition(action.seed.end));
-  }
-
-  const forward = action.request === 'next';
-  const command = action.seed
-    ? forward
-      ? 'editor.action.nextSelectionMatchFindAction'
-      : 'editor.action.previousSelectionMatchFindAction'
-    : forward
-      ? 'editor.action.nextMatchFindAction'
-      : 'editor.action.previousMatchFindAction';
-
-  for (let step = 0; step < Math.max(1, action.count); step++) {
-    await vscode.commands.executeCommand(command);
-  }
-
-  // The find commands leave the match selected, which is right for VS Code and
-  // wrong for us: Normal mode would show a selection, and the caret would sit at
-  // the end of the match rather than on its first character. Collapsing to the
-  // start restores what `n` means in Vim.
-  const start = editor.selection.start;
-  editor.selection = new vscode.Selection(start, start);
 }
 
 /**

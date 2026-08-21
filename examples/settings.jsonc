@@ -87,8 +87,14 @@
     { "before": ["<leader>", "r"], "commands": ["vimLike.sendToTerminal"] },
     // nnoremap <leader>z zi
     { "before": ["<leader>", "z"], "commands": ["editor.toggleFold"] },
-    // map <leader>/ gc
-    { "before": ["<leader>", "/"], "commands": ["editor.action.commentLine"] }
+    // map <leader>/ gc  (キーは <leader>c に移しました。下の「検索」を参照)
+    { "before": ["<leader>", "c"], "commands": ["editor.action.commentLine"] },
+
+    // ---- 検索 ---------------------------------------------------------------
+    // `/` と `?` はこの拡張機能の検索です (`d/foo` のようにオペレータと
+    // 組み合わせられるのはこちらだけ)。VS Code の検索バーは履歴・正規表現の
+    // 切り替え・一致件数が使えるので、<leader>/ で開けるようにしています。
+    { "before": ["<leader>", "/"], "commands": ["actions.find"] }
   ],
 
   "vimLike.visualModeKeyBindings": [
@@ -101,7 +107,12 @@
     // vnoremap L $
     { "before": ["L"], "after": ["$"] },
     // map <leader>/ gc  (map なので Visual モードにも効きます)
-    { "before": ["<leader>", "/"], "commands": ["editor.action.commentLine"] }
+    // 選択範囲をまとめてコメントにします。
+    { "before": ["<leader>", "c"], "commands": ["editor.action.commentLine"] },
+    // 選択した文字列を検索語に入れて検索バーを開きます。actions.find でも既定
+    // では同じですが、それは editor.find.seedSearchStringFromSelection 次第です。
+    // findWithSelection は設定に関係なく選択範囲を使います。
+    { "before": ["<leader>", "/"], "commands": ["actions.findWithSelection"] }
   ]
 }
 
@@ -125,10 +136,13 @@
 //   nnoremap <leader>i :tabnew<enter>
 //     workbench.action.files.newUntitledFile は空のファイルを開きます。
 //     既存ファイルを開きたい場合は workbench.action.quickOpen のほうが近いです。
+//
+// 別のキーに譲ったもの
 //   map <leader>/ gc
-//     editor.action.commentLine は現在行 (Visual では選択範囲) を対象にします。
-//     `gcip` のようにモーションと組み合わせる形は入れていません。行と選択範囲の
-//     トグルで足りているためで、必要になれば改めて起票します。
+//     <leader>/ は VS Code の検索バー (actions.find) に使うことにしたので、
+//     コメントのトグルは <leader>c に移しました。VS Code 既定の Cmd+/ も
+//     Normal モードからそのまま効きます。
+//     `gcip` のようにモーションと組み合わせる形はそもそも入れていません。
 //
 // 方向移動で足りるので、割り当てないと決めたもの
 //   Claude Code や GitHub Copilot Chat のパネルを開くキー
