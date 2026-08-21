@@ -359,9 +359,23 @@ function withActiveEditor<T>(action: (editor: vscode.TextEditor) => T): T | unde
   return editor ? action(editor) : undefined;
 }
 
-/** Excludes the output panel and debug console, which report as text editors. */
+/**
+ * Surfaces that report as text editors but are not somewhere to edit: the output
+ * panel, the debug console, and the terminal's own buffer view.
+ */
+const READ_ONLY_SCHEMES: ReadonlySet<string> = new Set(['output', 'debug', 'vscode-terminal']);
+
+/**
+ * Whether this is an editor Vim mode belongs in.
+ *
+ * Decided by scheme rather than by `viewColumn`. `viewColumn` is
+ * `undefined` for any editor that is not one of the main ones — which includes
+ * every pane of a diff editor, and any group past the third. Using it meant
+ * Normal mode silently stopped working when reviewing a diff, or in a fourth
+ * editor group.
+ */
 function isEditableEditor(editor: vscode.TextEditor): boolean {
-  return editor.viewColumn !== undefined && editor.document.uri.scheme !== 'output';
+  return !READ_ONLY_SCHEMES.has(editor.document.uri.scheme);
 }
 
 function setMode(mode: Mode): void {
