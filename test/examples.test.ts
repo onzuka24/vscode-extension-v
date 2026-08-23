@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
+import { compileAiPanels } from '../src/core/aiPanels';
 import { compileExCommands, parseExCommand } from '../src/core/excommands';
 import { RemapConfiguration, RemapRule, RemapTable } from '../src/core/remap';
 import { run } from './harness';
@@ -19,6 +20,7 @@ const source = readFileSync(path.join(ROOT, 'examples', 'settings.jsonc'), 'utf8
 interface Settings {
   'vimLike.leader': string;
   'vimLike.exCommands': Record<string, string[]>;
+  'vimLike.aiPanels': unknown;
   'vimLike.normalModeKeyBindings': RemapRule[];
   'vimLike.visualModeKeyBindings': RemapRule[];
 }
@@ -62,10 +64,20 @@ test('テンプレートの leader マッピングが発火する', () => {
   assert.deepEqual(run('abc', ' ww', { remaps }).commands, ['workbench.action.evenEditorWidths']);
   assert.deepEqual(run('abc', ' /', { remaps }).commands, ['actions.find']);
   assert.deepEqual(run('abc', ' c', { remaps }).commands, ['editor.action.commentLine']);
+  assert.deepEqual(run('abc', ' e', { remaps }).commands, ['vimLike.sendToAIPanel']);
+  assert.deepEqual(run('abc', ' E', { remaps }).commands, ['vimLike.chooseAIPanel']);
   assert.deepEqual(run('abc', ' n', { remaps }).commands, [
     'workbench.view.explorer',
     'workbench.files.action.focusFilesExplorer'
   ]);
+});
+
+test('テンプレートの AI パネルが読み込める', () => {
+  const { panels, problems } = compileAiPanels(settings['vimLike.aiPanels']);
+  assert.deepEqual(problems, []);
+  assert.ok(panels.length > 0);
+  // 送り先のコマンドは、こちらが選択範囲を合わせたうえで実行されるものだけです。
+  assert.deepEqual(panels[0], { name: 'Claude Code', command: 'claude-vscode.focus' });
 });
 
 test('テンプレートの Ex コマンドが読み込める', () => {
@@ -79,6 +91,7 @@ test('テンプレートの Visual モード側も効く', () => {
   assert.equal(run('hello world', 'vLd', { remaps }).text, '');
   assert.deepEqual(run('hello', 'v /', { remaps }).commands, ['actions.findWithSelection']);
   assert.deepEqual(run('hello', 'v c', { remaps }).commands, ['editor.action.commentLine']);
+  assert.deepEqual(run('hello', 'v e', { remaps }).commands, ['vimLike.sendToAIPanel']);
 });
 
 test('テンプレートは Vim 既定のキーを壊さない', () => {

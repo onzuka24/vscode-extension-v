@@ -18,6 +18,20 @@
     "gg": ["git-graph.view"]
   },
 
+  // <leader>e / <leader>E の送り先です。上から順に、<leader>e は先頭へ送ります
+  // (<leader>E で選ぶと、以降の <leader>e もそこへ送ります)。
+  //
+  // 送られるのは現在行または選択範囲への「参照」(@file#12-20) で、本文では
+  // ありません。開いている会話に届けられるのがこれだけだからです。参照のほうが
+  // 貼り付けより正確でもあります (相手が今のファイルを読むため)。
+  // 指示そのものは、参照が入力欄に入ったあとに自分で打ちます。
+  "vimLike.aiPanels": [
+    // 開いている面に届け、閉じていれば開いてから届けます。
+    { "name": "Claude Code", "command": "claude-vscode.focus" },
+    // Codex のスレッドに参照を追加します。保存済みファイルのみ対象です。
+    { "name": "Codex", "command": "chatgpt.addToThread" }
+  ],
+
   "vimLike.normalModeKeyBindings": [
     // ---- 移動キーの置き換え -------------------------------------------------
     // nnoremap H ^
@@ -90,6 +104,12 @@
     // map <leader>/ gc  (キーは <leader>c に移しました。下の「検索」を参照)
     { "before": ["<leader>", "c"], "commands": ["editor.action.commentLine"] },
 
+    // ---- AI パネルへ送る ----------------------------------------------------
+    // 現在行 (Visual モードでは選択範囲) への参照を送ります。送り先は上の
+    // vimLike.aiPanels です。<leader>E は送り先を選んでから送ります。
+    { "before": ["<leader>", "e"], "commands": ["vimLike.sendToAIPanel"] },
+    { "before": ["<leader>", "E"], "commands": ["vimLike.chooseAIPanel"] },
+
     // ---- 検索 ---------------------------------------------------------------
     // `/` と `?` はこの拡張機能の検索です (`d/foo` のようにオペレータと
     // 組み合わせられるのはこちらだけ)。VS Code の検索バーは履歴・正規表現の
@@ -109,6 +129,9 @@
     // map <leader>/ gc  (map なので Visual モードにも効きます)
     // 選択範囲をまとめてコメントにします。
     { "before": ["<leader>", "c"], "commands": ["editor.action.commentLine"] },
+    // 選択範囲への参照を AI パネルへ送ります。
+    { "before": ["<leader>", "e"], "commands": ["vimLike.sendToAIPanel"] },
+    { "before": ["<leader>", "E"], "commands": ["vimLike.chooseAIPanel"] },
     // 選択した文字列を検索語に入れて検索バーを開きます。actions.find でも既定
     // では同じですが、それは editor.find.seedSearchStringFromSelection 次第です。
     // findWithSelection は設定に関係なく選択範囲を使います。

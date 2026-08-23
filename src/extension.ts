@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import { Action, MarkListing } from './core/actions';
+import { AiPanel, compileAiPanels } from './core/aiPanels';
+import { SendOutcome, sendToAiPanel } from './adapter/aiPanel';
 import { applyActions, readCursor } from './adapter/apply';
 import { DocumentBuffer } from './adapter/buffer';
 import { MarkDecorations } from './adapter/markDecorations';
@@ -33,6 +35,16 @@ let typeInterceptorReady = false;
  * time our own move comes back and would make us resync against it.
  */
 let lastAppliedSelection: string | undefined;
+
+/** The AI panels from `vimLike.aiPanels`, in the order they are written. */
+let aiPanels: readonly AiPanel[] = [];
+/**
+ * Which panel `<leader>e` uses. Set by the chooser so that picking one sticks for
+ * the rest of the session; with a single panel configured there is nothing to
+ * choose and this stays on it. Deliberately not persisted — a default that
+ * survives a restart with no way to see it would be a setting in disguise.
+ */
+let currentAiPanel: string | undefined;
 
 /** Last `enabled:mode` pair pushed to the context keys, to avoid redundant round trips. */
 let lastPublishedMode: string | undefined;
@@ -286,6 +298,25 @@ function registerCommands(context: vscode.ExtensionContext): void {
     })
   );
 
+  // `<leader>e` and `<leader>E`. What travels to the panel is a reference to the
+  // line or selection, not its text — see `core/aiPanels.ts` for why that is the
+  // only thing an already-open conversation will take.
+  register('vimLike.sendToAIPanel', () =>
+    withActiveEditor(async editor => {
+      const panel = chosenAiPanel();
+      if (panel) reportSend(await sendToAiPanel(editor, state.mode, panel), panel);
+    })
+  );
+
+  register('vimLike.chooseAIPanel', () =>
+    withActiveEditor(async editor => {
+      const panel = await askForAiPanel();
+      if (!panel) return;
+      currentAiPanel = panel.name;
+      reportSend(await sendToAiPanel(editor, state.mode, panel), panel);
+    })
+  );
+
   register('vimLike.toggleEnabled', async () => {
     enabled = !enabled;
     await configuration().update('enabled', enabled, vscode.ConfigurationTarget.Global);
@@ -348,6 +379,11 @@ function loadRemaps(): void {
   engine.setExCommands(ex.table);
   problems.push(...ex.problems);
 
+  const ai = compileAiPanels(settings.get<unknown>('aiPanels'));
+  aiPanels = ai.panels;
+  problems.push(...ai.problems);
+  if (!aiPanels.some(panel => panel.name === currentAiPanel)) currentAiPanel = undefined;
+
   if (problems.length > 0) {
     void vscode.window.showWarningMessage(
       `Vim Like: 設定のキー割り当てを一部読み込めませんでした。 ${problems.join(' / ')}`
@@ -358,6 +394,50 @@ function loadRemaps(): void {
 function withActiveEditor<T>(action: (editor: vscode.TextEditor) => T): T | undefined {
   const editor = vscode.window.activeTextEditor;
   return editor ? action(editor) : undefined;
+}
+
+/** The panel `<leader>e` sends to, or nothing when none is configured. */
+function chosenAiPanel(): AiPanel | undefined {
+  if (aiPanels.length === 0) {
+    void vscode.window.showWarningMessage(
+      'Vim Like: 送り先が設定されていません。settings.json の vimLike.aiPanels に ' +
+        '{ "name": …, "command": … } を並べてください。examples/settings.jsonc に例があります。'
+    );
+    return undefined;
+  }
+  return aiPanels.find(panel => panel.name === currentAiPanel) ?? aiPanels[0];
+}
+
+async function askForAiPanel(): Promise<AiPanel | undefined> {
+  const current = chosenAiPanel();
+  if (!current) return undefined;
+  if (aiPanels.length === 1) return current;
+
+  const picked = await vscode.window.showQuickPick(
+    aiPanels.map(panel => ({
+      label: panel.name,
+      description: panel.name === current.name ? `${panel.command} (現在の送り先)` : panel.command,
+      panel
+    })),
+    { title: 'Vim Like: 送り先', placeHolder: '選ぶと以降の <leader>e もここへ送ります' }
+  );
+  return picked?.panel;
+}
+
+function reportSend(outcome: SendOutcome, panel: AiPanel): void {
+  if (outcome.kind === 'sent') return;
+
+  if (outcome.kind === 'nothing') {
+    void vscode.window.showInformationMessage('Vim Like: 空行なので送るものがありません。');
+    return;
+  }
+
+  // Naming the command is what makes this actionable: the usual cause is that the
+  // panel's own extension is not installed, or renamed the command.
+  void vscode.window.showWarningMessage(
+    `Vim Like: ${panel.name} へ送れませんでした。コマンド ${outcome.command} を実行できません。` +
+      'その拡張機能が入っているか、コマンド ID が変わっていないか確かめてください。'
+  );
 }
 
 /**
