@@ -9,7 +9,8 @@ import { EngineResult, VimEngine, VimState, createState, describePending, withEx
 import { DEFAULT_LEADER, SPECIAL_KEYS } from './core/keys';
 import { compileExCommands } from './core/excommands';
 import { RemapRule, RemapTable } from './core/remap';
-import { Mode } from './core/types';
+import { shouldPullCaretBack } from './core/cursor';
+import { Mode, Position, pos } from './core/types';
 
 const engine = new VimEngine();
 let state: VimState = createState('normal');
@@ -302,11 +303,14 @@ function registerListeners(context: vscode.ExtensionContext): void {
     }),
 
     // A click, an arrow key or a jump to a definition moves the caret without us:
-    // resync so that the column `j` and `k` aim for is not stale.
+    // resync so that the column `j` and `k` aim for is not stale, and put the
+    // caret back where the mode allows it to be.
     vscode.window.onDidChangeTextEditorSelection(event => {
       if (event.textEditor !== vscode.window.activeTextEditor) return;
       if (selectionKey(event.textEditor.selection) === lastAppliedSelection) return;
-      state = withExternalCursor(state, readCursor(event.textEditor, state.mode));
+      const cursor = readCursor(event.textEditor, state.mode);
+      state = withExternalCursor(state, cursor);
+      pullCaretBack(event.textEditor, cursor);
     }),
 
     vscode.workspace.onDidChangeConfiguration(event => {
@@ -354,6 +358,39 @@ function loadRemaps(): void {
 function withActiveEditor<T>(action: (editor: vscode.TextEditor) => T): T | undefined {
   const editor = vscode.window.activeTextEditor;
   return editor ? action(editor) : undefined;
+}
+
+/**
+ * Draws the caret where the mode says it is, after something outside this
+ * extension moved it — a click past the end of a line, most often.
+ *
+ * Nothing about what commands do changes here: `readCursor` already clamps, so
+ * `x` at such a caret has always deleted the last character rather than nothing.
+ * What is fixed is the disagreement between that and what the caret shows, which
+ * is how the author's `set mouse=` habit turns into a visible bug in VS Code —
+ * the mouse cannot be switched off, so the caret it leaves has to be corrected.
+ */
+function pullCaretBack(editor: vscode.TextEditor, clamped: Position): void {
+  if (!enabled || !isEditableEditor(editor)) return;
+
+  const selection = editor.selection;
+  // The mode is not passed on: `readCursor` has already applied it to `clamped`.
+  const decision = {
+    active: pos(selection.active.line, selection.active.character),
+    clamped,
+    caretCount: editor.selections.length,
+    hasSelection: !selection.isEmpty
+  };
+  if (!shouldPullCaretBack(decision)) return;
+
+  const position = new vscode.Position(clamped.line, clamped.character);
+  editor.selection = new vscode.Selection(position, position);
+  // Our own write comes back as another selection change. It would settle by
+  // itself — a clamped position clamps to itself, so the second pass finds
+  // nothing to do — but recording it keeps this the same as every other place
+  // that moves the caret, so a future correction that is not idempotent cannot
+  // quietly start bouncing.
+  lastAppliedSelection = selectionKey(editor.selection);
 }
 
 /**
