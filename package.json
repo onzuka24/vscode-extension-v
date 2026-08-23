@@ -75,6 +75,14 @@
       {
         "command": "vimLike.showLog",
         "title": "Vim Like: Show Log"
+      },
+      {
+        "command": "vimLike.sendToAIPanel",
+        "title": "Vim Like: Send Line or Selection to AI Panel"
+      },
+      {
+        "command": "vimLike.chooseAIPanel",
+        "title": "Vim Like: Choose AI Panel and Send"
       }
     ],
     "configuration": {
@@ -113,6 +121,29 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          }
+        },
+        "vimLike.aiPanels": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "`vimLike.sendToAIPanel` (`<leader>e`) と `vimLike.chooseAIPanel` (`<leader>E`) の送り先です。\n\n```json\n[\n  { \"name\": \"Claude Code\", \"command\": \"claude-vscode.focus\" },\n  { \"name\": \"Codex\", \"command\": \"chatgpt.addToThread\" }\n]\n```\n\n送られるのは現在行または選択範囲への**参照** (`@file#12-20`) で、本文ではありません。開いている会話に届けられるのがこれだけだからです。コマンドは、この拡張機能が選択範囲を合わせたうえで実行されます。",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "command"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "送り先を選ぶときに出る名前。"
+              },
+              "command": {
+                "type": "string",
+                "description": "実行する VS Code のコマンド ID。選択範囲を自分で読むものを指定します。"
+              }
             }
           }
         },
