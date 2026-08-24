@@ -18,10 +18,12 @@ VS Code 上で Vim ライクなモーダル編集を提供する拡張機能で�
 ```sh
 git clone <repository-url>
 cd vscode-extension-v
-mise install   # mise を使わない場合は不要
+mise install
 npm install
 npm run compile
 ```
+
+`mise install` は mise を使っている場合だけです。使っていなければ飛ばしてください。
 
 VS Code でこのディレクトリを開き、`F5`（または「実行とデバッグ」ビューの **Run Extension**）を
 実行すると、拡張機能が有効になった Extension Development Host が起動します。ビルドは
@@ -36,9 +38,12 @@ GitHub Actions の CI でも同じものが、mise.toml で固定したものと
 開発ホストを起動せずに常用したい場合は、VSIX を作って入れられます。
 
 ```sh
-npm run package                                  # vscode-vim-like-0.1.0.vsix ができる
+npm run package
 code --install-extension vscode-vim-like-0.1.0.vsix
 ```
+
+`npm run package` が `vscode-vim-like-0.1.0.vsix` を作ります。バージョンを上げたあとは
+ファイル名も変わるので、2行目はそれに合わせてください。
 
 拡張機能ビューの右上「…」→「VSIX からのインストール」からでも入れられます。
 入れ替えるときは同じ手順で上書きされます。外すときは拡張機能ビューから
@@ -489,16 +494,19 @@ all good
 VS Code のターミナルでだけラッパーの起動を抑える方法があります。`kiro-cli` の場合は
 起動条件に `PROCESS_LAUNCHED_BY_Q` の判定があるので、これを立てておけば `exec` を回避できます。
 
+settings.json に次を足します。
+
 ```jsonc
-// settings.json
 "terminal.integrated.env.osx": { "PROCESS_LAUNCHED_BY_Q": "1" }
 ```
 
 引き換えに、VS Code のターミナルではそのツールの補完や提案が効かなくなります。他の
-ターミナルアプリには影響しません。手動でシェル統合を導入する方法もあります。
+ターミナルアプリには影響しません。
+
+手動でシェル統合を導入する方法もあります。次の行を `.zshrc` の末尾、ラッパーを起動している
+行より後に置いてください。
 
 ```sh
-# .zshrc の末尾（ラッパーの起動より後）に置く
 [[ "$TERM_PROGRAM" == "vscode" ]] && . "$(code --locate-shell-integration-path zsh)"
 ```
 
