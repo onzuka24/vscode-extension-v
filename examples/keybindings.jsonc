@@ -116,9 +116,11 @@
   // コマンドです。ツリーが左・エディターが右という配置なら「右へ移る」で通せます。
   { "key": "space l", "command": "workbench.action.navigateRight", "when": "filesExplorerFocus && !inputFocus" },
 
-  // space n はサイドバーを閉じて戻ります。settings.json の <leader>n (開いて入る) と
-  // 同じ打鍵なので、開くときも閉じるときも同じキーになります。
-  { "key": "space n", "command": "workbench.action.closeSidebar", "when": "filesExplorerFocus && !inputFocus" }
+  // space n はファイルツリーを閉じて戻ります。settings.json の <leader>n と同じ
+  // 打鍵で、呼ぶコマンドも同じです。同じコマンドを通すのが大事で、拡張機能は
+  // サイドバーが開いているかを VS Code に問い合わせられないため、自分が開閉した
+  // 記録を頼りにしています。ここで closeSidebar を直接呼ぶとその記録がずれます。
+  { "key": "space n", "command": "vimLike.toggleFileTree", "when": "filesExplorerFocus && !inputFocus" }
 ]
 
 // ============================================================================

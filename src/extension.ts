@@ -36,6 +36,30 @@ let typeInterceptorReady = false;
  */
 let lastAppliedSelection: string | undefined;
 
+/**
+ * Whether we believe the file tree is showing.
+ *
+ * VS Code gives an extension no way to ask. There is no API for view visibility,
+ * and the `getContextKeyInfo` command returns the *declarations* of context keys
+ * rather than their values, so `explorerViewletVisible` is unreadable from here.
+ * A `when` clause is no help either: `<leader>n` arrives through the `type`
+ * command, not through a keybinding, so there is nothing for a condition to gate.
+ *
+ * Remembering is acceptable because being wrong is cheap. Both directions are
+ * idempotent — `workbench.action.closeSidebar` only ever closes, and
+ * `workbench.files.action.focusFilesExplorer` only ever opens and focuses — so a
+ * stale belief costs one keystroke that does the other thing, after which the
+ * belief and reality agree again. Neither direction can destroy anything.
+ *
+ * It starts false so the first press of a session always opens and focuses, which
+ * is the harmless guess: if the tree was already there, that press just moves
+ * focus into it, exactly as `<leader>n` did before it became a toggle.
+ *
+ * Only VS Code's own ways of hiding the sidebar (`Cmd+B`, clicking the activity
+ * bar) can desync it, because neither is observable.
+ */
+let fileTreeShowing = false;
+
 /** The AI panels from `vimLike.aiPanels`, in the order they are written. */
 let aiPanels: readonly AiPanel[] = [];
 /**
@@ -301,6 +325,29 @@ function registerCommands(context: vscode.ExtensionContext): void {
   // `<leader>e` and `<leader>E`. What travels to the panel is a reference to the
   // line or selection, not its text — see `core/aiPanels.ts` for why that is the
   // only thing an already-open conversation will take.
+  // `<leader>n`, and the same keys from inside the tree. Routed through one
+  // command in both places so that closing from the tree keeps the belief above
+  // in step; only VS Code's own sidebar keys can get it out of step.
+  register('vimLike.toggleFileTree', async () => {
+    if (fileTreeShowing) {
+      fileTreeShowing = false;
+      // Safe to call even when the sidebar is already hidden. The command does
+      // carry a precondition of it being visible, but `registerAction2` applies a
+      // precondition only to menus, the command palette and keybindings — the
+      // handler that `executeCommand` reaches runs regardless, and hiding an
+      // already-hidden part does nothing.
+      await vscode.commands.executeCommand('workbench.action.closeSidebar');
+      return;
+    }
+
+    fileTreeShowing = true;
+    // One command rather than `workbench.view.explorer`, which focuses the editor
+    // instead when the tree already has focus. This one is unconditional: it
+    // opens the sidebar on the explorer and puts the caret in the tree, so a
+    // single press is enough to start moving with `j` and `k`.
+    await vscode.commands.executeCommand('workbench.files.action.focusFilesExplorer');
+  });
+
   // `<leader>R`. Which terminal receives is otherwise whichever was open last,
   // which is fine until there are two and the wrong one is running a server.
   register('vimLike.chooseTerminal', async () => {

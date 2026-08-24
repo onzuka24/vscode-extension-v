@@ -29,10 +29,7 @@
     { "before": ["<leader>", "w", "l"], "commands": ["workbench.action.increaseViewWidth"] },
     { "before": ["<leader>", "w", "w"], "commands": ["workbench.action.evenEditorWidths"] },
     { "before": ["<leader>", "s"], "commands": ["workbench.action.files.save"] },
-    {
-      "before": ["<leader>", "n"],
-      "commands": ["workbench.view.explorer", "workbench.files.action.focusFilesExplorer"]
-    },
+    { "before": ["<leader>", "n"], "commands": ["vimLike.toggleFileTree"] },
     { "before": ["<leader>", "t"], "commands": ["vimLike.openTerminalOutput"] },
     { "before": ["<leader>", "r"], "commands": ["vimLike.sendToTerminal"] },
     { "before": ["<leader>", "R"], "commands": ["vimLike.chooseTerminal"] },

@@ -77,6 +77,10 @@
         "title": "Vim Like: Show Log"
       },
       {
+        "command": "vimLike.toggleFileTree",
+        "title": "Vim Like: Toggle File Tree"
+      },
+      {
         "command": "vimLike.chooseTerminal",
         "title": "Vim Like: Choose Terminal to Send To"
       },
