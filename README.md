@@ -336,7 +336,7 @@ VS Code 既定のまま効きます）。オペレータの `c` は `c` のま�
   { "before": ["L"], "after": ["$"] },
   { "before": ["U"], "after": ["<C-r>"] },
 
-  { "before": ["<leader>", "n"], "commands": ["workbench.view.explorer"] },
+  { "before": ["<leader>", "n"], "commands": ["vimLike.toggleFileTree"] },
   { "before": ["<leader>", "h"], "commands": ["workbench.action.navigateLeft"] },
   { "before": ["<leader>", "w", "h"], "commands": ["workbench.action.decreaseViewWidth"] }
 ]
@@ -363,8 +363,8 @@ leader 起点のウィンドウ操作まで一式入っているので、setting
 
 | ファイル | 用途 |
 | --- | --- |
-| [settings.json](examples/settings.json) | **貼り付ける用。** 注釈なしで56行 |
-| [settings.jsonc](examples/settings.jsonc) | **読む用。** なぜその割り当てなのか、元の init.vim の行つきで189行 |
+| [settings.json](examples/settings.json) | **貼り付ける用。** 注釈なしで52行 |
+| [settings.jsonc](examples/settings.jsonc) | **読む用。** なぜその割り当てなのか、元の init.vim の行つきで193行 |
 
 注釈が3行に2行を占めるので、貼るときは邪魔になり、読むときは要るという事情です。`.json` は
 `.jsonc` から生成しています（`npm run examples`）ので、直すのは `.jsonc` のほうです。中身が
@@ -374,6 +374,28 @@ leader 起点のウィンドウ操作まで一式入っているので、setting
 既存の設定を丸ごと置き換えてしまいます。
 
 ### エクスプローラーとターミナル
+
+#### ファイルツリーの開閉（`<leader>n`）
+
+`vimLike.toggleFileTree`（**Vim Like: Toggle File Tree**）で開閉を切り替えます。閉じていれば
+開いてツリーにフォーカスまで移すので、1打鍵で `j` `k` を打ち始められます。開いていれば閉じます。
+`:NvimTreeToggle` に相当します。
+
+ツリーの中から同じ打鍵で閉じるには、`examples/keybindings.json` の `space n` も入れてください。
+**同じコマンドを呼ぶことが大事です。**
+
+拡張機能には**サイドバーが開いているかを VS Code に問い合わせる手段がありません。** 表示状態を
+返す API はなく、`getContextKeyInfo` コマンドが返すのはコンテキストキーの宣言であって値では
+ないので、`explorerViewletVisible` は読めません。`when` 句も使えません（`<leader>n` は
+キーバインドではなく `type` コマンドを通って届くため、条件で振り分ける対象がありません）。
+
+そのため自分が開閉した記録を頼りにしています。**外れても害はありません。** 開く側
+（`focusFilesExplorer`）は必ず開いてフォーカスするだけ、閉じる側（`closeSidebar`）は必ず閉じる
+だけで、どちらも冪等です。記録が実態とずれていても、1打鍵が逆の動きをして、それで記録と実態が
+一致し直します。壊れるものはありません。
+
+ずれるのは VS Code 側の手段（`Cmd+B`、アクティビティバーのクリック）で閉じたときだけです。
+どちらも拡張機能から観測できません。
 
 **エクスプローラーではモードやオペレータは使えません。** ツリービューであってテキスト
 エディターではないため、打鍵が `type` コマンドを通らないからです。ただし `j` `k` `h` `l`

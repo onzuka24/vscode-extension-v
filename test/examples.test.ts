@@ -68,10 +68,7 @@ test('テンプレートの leader マッピングが発火する', () => {
   assert.deepEqual(run('abc', ' r', { remaps }).commands, ['vimLike.sendToTerminal']);
   assert.deepEqual(run('abc', ' R', { remaps }).commands, ['vimLike.chooseTerminal']);
   assert.deepEqual(run('abc', ' E', { remaps }).commands, ['vimLike.chooseAIPanel']);
-  assert.deepEqual(run('abc', ' n', { remaps }).commands, [
-    'workbench.view.explorer',
-    'workbench.files.action.focusFilesExplorer'
-  ]);
+  assert.deepEqual(run('abc', ' n', { remaps }).commands, ['vimLike.toggleFileTree']);
 });
 
 test('テンプレートの AI パネルが読み込める', () => {

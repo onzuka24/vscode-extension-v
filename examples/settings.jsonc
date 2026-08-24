@@ -90,15 +90,12 @@
     // nnoremap <leader>s :w<enter>
     { "before": ["<leader>", "s"], "commands": ["workbench.action.files.save"] },
     // nnoremap <leader>n :NvimTreeToggle<enter>
-    // サイドバーにエクスプローラーを開いてから、ファイルツリーへフォーカスを
-    // 移します。閉じている状態からでも1打鍵でツリーに入れます。
+    // ファイルツリーの開閉を切り替えます。閉じていれば開いてフォーカスまで
+    // 移すので、1打鍵でツリーに入れます。開いていれば閉じます。
     //
-    // これは行き (エディター → ファイルツリー) だけです。ツリー側で同じ打鍵を
-    // 使って閉じるには、examples/keybindings.jsonc の "space n" も入れてください。
-    {
-      "before": ["<leader>", "n"],
-      "commands": ["workbench.view.explorer", "workbench.files.action.focusFilesExplorer"]
-    },
+    // ツリーの中から同じ打鍵で閉じるには、examples/keybindings.jsonc の
+    // "space n" も入れてください。同じコマンドを呼ぶので状態がずれません。
+    { "before": ["<leader>", "n"], "commands": ["vimLike.toggleFileTree"] },
     // nnoremap <leader>t :Term<enter>
     // ターミナルそのものではなく、ターミナル用の作業バッファを開きます。
     // 出力がここに追記され、書いた行を <leader>r で送れます。文書なので

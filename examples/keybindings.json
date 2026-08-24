@@ -39,5 +39,5 @@
   },
   { "key": "escape", "command": "workbench.action.focusActiveEditorGroup", "when": "filesExplorerFocus && !inputFocus" },
   { "key": "space l", "command": "workbench.action.navigateRight", "when": "filesExplorerFocus && !inputFocus" },
-  { "key": "space n", "command": "workbench.action.closeSidebar", "when": "filesExplorerFocus && !inputFocus" }
+  { "key": "space n", "command": "vimLike.toggleFileTree", "when": "filesExplorerFocus && !inputFocus" }
 ]
