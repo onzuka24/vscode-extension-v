@@ -441,6 +441,14 @@ function reportSend(outcome: SendOutcome, panel: AiPanel): void {
     return;
   }
 
+  if (outcome.kind === 'unsaved') {
+    void vscode.window.showInformationMessage(
+      'Vim Like: 保存していないファイルは送れません。送るのは場所への参照なので、' +
+        'ファイルに名前がないと指す先がありません。先に保存してください。'
+    );
+    return;
+  }
+
   // Naming the command is what makes this actionable: the usual cause is that the
   // panel's own extension is not installed, or renamed the command.
   void vscode.window.showWarningMessage(

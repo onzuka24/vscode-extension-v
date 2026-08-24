@@ -18,6 +18,17 @@ export type SendOutcome =
   | { readonly kind: 'sent' }
   /** The caret is on a blank line, so there is nothing to point at. */
   | { readonly kind: 'nothing' }
+  /**
+   * The document has never been saved, so a reference to it points at nothing.
+   *
+   * Worth stopping here rather than letting the panel's command run. Claude Code
+   * builds its mention from `asRelativePath(document.fileName)` without checking
+   * whether the document has a path at all, so an untitled buffer yields
+   * `@Untitled-1#1` — which looks like a reference and resolves to nothing.
+   * Codex takes the other route and silently does nothing for a non-`file` URI.
+   * Either way the keystroke appears to have worked and has not.
+   */
+  | { readonly kind: 'unsaved' }
   /** The command is not there — most likely the panel's extension is not installed. */
   | { readonly kind: 'missing'; readonly command: string; readonly reason: string };
 
@@ -26,6 +37,8 @@ export async function sendToAiPanel(
   mode: Mode,
   panel: AiPanel
 ): Promise<SendOutcome> {
+  if (editor.document.isUntitled) return { kind: 'unsaved' };
+
   const buffer = new DocumentBuffer(editor.document);
   const selection = editor.selection;
   const selected = isVisual(mode) && !selection.isEmpty
