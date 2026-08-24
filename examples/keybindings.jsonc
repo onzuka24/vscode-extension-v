@@ -30,6 +30,9 @@
   { "key": "ctrl+d", "command": "list.focusPageDown", "when": "listFocus && !inputFocus" },
   { "key": "ctrl+u", "command": "list.focusPageUp", "when": "listFocus && !inputFocus" },
 
+  // ファイルツリー上で誤って入力する可能性の高いキーを無効化しておく
+  { "key": "/", "command": "-list.filter", "when": "listFocus && !inputFocus" },
+
   // エクスプローラー以外での Enter。エクスプローラーはファイルとフォルダで動作を
   // 分けるため、下で別に定義します。
   { "key": "enter", "command": "list.select", "when": "listFocus && !inputFocus && !filesExplorerFocus" },
