@@ -2,6 +2,11 @@ import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as vscode from 'vscode';
+import {
+  NEW_TERMINAL_DESCRIPTION,
+  NEW_TERMINAL_LABEL,
+  describeTerminal
+} from './terminalChoice';
 import { formatTranscriptEntry, keepTail, plainTerminalText } from './transcript';
 
 /**
@@ -118,6 +123,63 @@ export class TerminalBridge {
       .then(choice => {
         if (choice) this.log.show();
       });
+  }
+
+  /**
+   * Lets the user say which terminal to send to, including opening a new one with
+   * a shell of their choosing.
+   *
+   * The shells VS Code has detected cannot be listed through the extension API —
+   * there is no way to enumerate terminal profiles — so opening a new terminal is
+   * handed to `workbench.action.terminal.newWithProfile` with no arguments, which
+   * makes VS Code show its own profile picker. That list is the complete one.
+   */
+  public async choose(): Promise<'chosen' | 'created' | 'cancelled' | 'none'> {
+    const living = vscode.window.terminals.filter(candidate => candidate.exitStatus === undefined);
+
+    interface Row extends vscode.QuickPickItem {
+      /** Undefined on the row that opens a new terminal. */
+      readonly terminal?: vscode.Terminal;
+    }
+
+    const rows: Row[] = living.map(candidate => ({
+      ...describeTerminal({
+        name: candidate.name,
+        shell: candidate.state.shell,
+        hasShellIntegration: candidate.shellIntegration !== undefined,
+        isCurrent: candidate === this.terminal
+      }),
+      terminal: candidate
+    }));
+    rows.push({ label: NEW_TERMINAL_LABEL, description: NEW_TERMINAL_DESCRIPTION });
+
+    const picked = await vscode.window.showQuickPick(rows, {
+      title: 'Vim Like: コマンドの送り先',
+      placeHolder: '選んだターミナルへ <leader>r で送ります'
+    });
+    if (!picked) return 'cancelled';
+
+    if (picked.terminal) {
+      this.terminal = picked.terminal;
+      this.log.info(`送り先を変更: ${picked.terminal.name}`);
+      return 'chosen';
+    }
+
+    const created = await this.openWithChosenShell();
+    if (!created) return 'none';
+    this.terminal = created;
+    await waitForShellIntegration(created);
+    this.log.info(`送り先を新規作成: ${created.name} / シェル=${created.state.shell ?? '不明'}`);
+    return 'created';
+  }
+
+  /** Null when the user backed out of VS Code's profile picker. */
+  private async openWithChosenShell(): Promise<vscode.Terminal | undefined> {
+    const before = new Set(vscode.window.terminals);
+    await vscode.commands.executeCommand('workbench.action.terminal.newWithProfile');
+    // The command resolves once the terminal exists, so a diff identifies it
+    // without having to guess which of several is newest.
+    return vscode.window.terminals.find(candidate => !before.has(candidate));
   }
 
   /** Reuses a terminal, and gives a new one time to gain shell integration. */

@@ -301,6 +301,15 @@ function registerCommands(context: vscode.ExtensionContext): void {
   // `<leader>e` and `<leader>E`. What travels to the panel is a reference to the
   // line or selection, not its text — see `core/aiPanels.ts` for why that is the
   // only thing an already-open conversation will take.
+  // `<leader>R`. Which terminal receives is otherwise whichever was open last,
+  // which is fine until there are two and the wrong one is running a server.
+  register('vimLike.chooseTerminal', async () => {
+    const outcome = await terminal.choose();
+    if (outcome === 'none') {
+      void vscode.window.showInformationMessage('Vim Like: 送り先は変わっていません。');
+    }
+  });
+
   register('vimLike.sendToAIPanel', () =>
     withActiveEditor(async editor => {
       const panel = chosenAiPanel();
