@@ -1,0 +1,55 @@
+{
+  "vimLike.leader": " ",
+  "vimLike.exCommands": {
+    "gg": ["git-graph.view"]
+  },
+  "vimLike.aiPanels": [
+    { "name": "Claude Code", "command": "claude-vscode.focus" },
+    { "name": "Codex", "command": "chatgpt.addToThread" }
+  ],
+  "vimLike.normalModeKeyBindings": [
+    { "before": ["H"], "after": ["^"] },
+    { "before": ["J"], "after": ["1", "0", "j"] },
+    { "before": ["K"], "after": ["1", "0", "k"] },
+    { "before": ["L"], "after": ["$"] },
+    { "before": ["U"], "after": ["<C-r>"] },
+    { "before": ["<leader>", "h"], "commands": ["workbench.action.navigateLeft"] },
+    { "before": ["<leader>", "j"], "commands": ["workbench.action.navigateDown"] },
+    { "before": ["<leader>", "k"], "commands": ["workbench.action.navigateUp"] },
+    { "before": ["<leader>", "l"], "commands": ["workbench.action.navigateRight"] },
+    { "before": ["<leader>", "y"], "commands": ["workbench.action.previousEditor"] },
+    { "before": ["<leader>", "o"], "commands": ["workbench.action.nextEditor"] },
+    { "before": ["<leader>", "i"], "commands": ["workbench.action.files.newUntitledFile"] },
+    { "before": ["<leader>", "u"], "commands": ["workbench.action.files.newUntitledFile"] },
+    { "before": ["<leader>", "J"], "commands": ["workbench.action.splitEditor"] },
+    { "before": ["<leader>", "L"], "commands": ["workbench.action.splitEditorDown"] },
+    { "before": ["<leader>", "w", "h"], "commands": ["workbench.action.decreaseViewWidth"] },
+    { "before": ["<leader>", "w", "j"], "commands": ["workbench.action.decreaseViewHeight"] },
+    { "before": ["<leader>", "w", "k"], "commands": ["workbench.action.increaseViewHeight"] },
+    { "before": ["<leader>", "w", "l"], "commands": ["workbench.action.increaseViewWidth"] },
+    { "before": ["<leader>", "w", "w"], "commands": ["workbench.action.evenEditorWidths"] },
+    { "before": ["<leader>", "s"], "commands": ["workbench.action.files.save"] },
+    {
+      "before": ["<leader>", "n"],
+      "commands": ["workbench.view.explorer", "workbench.files.action.focusFilesExplorer"]
+    },
+    { "before": ["<leader>", "t"], "commands": ["vimLike.openTerminalOutput"] },
+    { "before": ["<leader>", "r"], "commands": ["vimLike.sendToTerminal"] },
+    { "before": ["<leader>", "R"], "commands": ["vimLike.chooseTerminal"] },
+    { "before": ["<leader>", "z"], "commands": ["editor.toggleFold"] },
+    { "before": ["<leader>", "c"], "commands": ["editor.action.commentLine"] },
+    { "before": ["<leader>", "e"], "commands": ["vimLike.sendToAIPanel"] },
+    { "before": ["<leader>", "E"], "commands": ["vimLike.chooseAIPanel"] },
+    { "before": ["<leader>", "/"], "commands": ["actions.find"] }
+  ],
+  "vimLike.visualModeKeyBindings": [
+    { "before": ["H"], "after": ["^"] },
+    { "before": ["J"], "after": ["1", "0", "j"] },
+    { "before": ["K"], "after": ["1", "0", "k"] },
+    { "before": ["L"], "after": ["$"] },
+    { "before": ["<leader>", "c"], "commands": ["editor.action.commentLine"] },
+    { "before": ["<leader>", "e"], "commands": ["vimLike.sendToAIPanel"] },
+    { "before": ["<leader>", "E"], "commands": ["vimLike.chooseAIPanel"] },
+    { "before": ["<leader>", "/"], "commands": ["actions.findWithSelection"] }
+  ]
+}

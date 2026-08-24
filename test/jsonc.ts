@@ -10,6 +10,26 @@ export function parseJsonc<T>(source: string): T {
   return JSON.parse(extractValue(stripComments(source))) as T;
 }
 
+/**
+ * The same file with the commentary taken out: plain JSON, ready to paste.
+ *
+ * The layout is kept rather than reformatted. Running the parsed value back
+ * through `JSON.stringify` would put every `"before": ["H"]` on four lines of its
+ * own and make the result harder to read than the annotated original — the
+ * opposite of the point. So this removes lines and nothing else: each rule stays
+ * on the one line it was written on.
+ *
+ * Trailing notes after the closing brace disappear on their own, since stripping
+ * their `//` leaves nothing behind.
+ */
+export function withoutComments(source: string): string {
+  const kept = stripComments(source)
+    .split('\n')
+    .map(line => line.replace(/\s+$/, ''))
+    .filter(line => line !== '');
+  return `${kept.join('\n')}\n`;
+}
+
 function stripComments(text: string): string {
   let result = '';
   let inString = false;

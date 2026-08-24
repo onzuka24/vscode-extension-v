@@ -290,6 +290,7 @@
   },
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('out', { recursive: true, force: true })\"",
+    "examples": "npm run compile && node scripts/plain-examples.mjs",
     "compile": "npm run clean && tsc -p ./",
     "watch": "tsc -watch -p ./",
     "typecheck": "tsc -p ./ --noEmit",

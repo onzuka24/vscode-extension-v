@@ -45,9 +45,11 @@ export default tseslint.config(
     }
   },
 
-  // The config file itself is not part of the TypeScript project.
+  // Plain JavaScript that is not part of the TypeScript project: this config, and
+  // the build scripts. Still linted — only the rules that need type information
+  // are dropped, since there is no program for them to consult.
   {
-    files: ['eslint.config.mjs'],
+    files: ['eslint.config.mjs', 'scripts/**/*.mjs'],
     extends: [tseslint.configs.disableTypeChecked]
   }
 );

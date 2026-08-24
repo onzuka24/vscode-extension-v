@@ -6,7 +6,7 @@ import { compileAiPanels } from '../src/core/aiPanels';
 import { compileExCommands, parseExCommand } from '../src/core/excommands';
 import { RemapConfiguration, RemapRule, RemapTable } from '../src/core/remap';
 import { run } from './harness';
-import { parseJsonc } from './jsonc';
+import { parseJsonc, withoutComments } from './jsonc';
 import { isValidKeyBinding } from './keySyntax';
 
 /**
@@ -124,6 +124,49 @@ test('テンプレートの <leader>/ は `/` 自体を奪わない', () => {
 
 function pos0(character: number): { line: number; character: number } {
   return { line: 0, character };
+}
+
+// ---------------------------------------------------------------------------
+// examples/*.json — 注釈を外した、貼り付ける用の双子
+// ---------------------------------------------------------------------------
+
+/**
+ * 注釈つきの `.jsonc` は「なぜその割り当てなのか」を、注釈なしの `.json` は
+ * 貼り付ける中身を受け持ちます。3行に2行が説明文だと貼るときに邪魔になるからです。
+ *
+ * 中身が同じであることを下で固定しているので、上のキー名や `when` を検証する
+ * テストは両方を守っていることになります。二重に書く必要はありません。
+ */
+const PAIRS = ['settings', 'keybindings'] as const;
+
+for (const name of PAIRS) {
+  const annotated = readFileSync(path.join(ROOT, 'examples', `${name}.jsonc`), 'utf8');
+  const plain = readFileSync(path.join(ROOT, 'examples', `${name}.json`), 'utf8');
+
+  test(`${name}.json は ${name}.jsonc と同じ内容になる`, () => {
+    assert.deepEqual(parseJsonc(plain), parseJsonc(annotated));
+  });
+
+  test(`${name}.json にはコメントも空行もない`, () => {
+    const lines = plain.split('\n').slice(0, -1);
+    assert.ok(lines.length > 0);
+    for (const [index, line] of lines.entries()) {
+      assert.ok(line.trim() !== '', `${index + 1} 行目が空行です`);
+      assert.ok(!line.trimStart().startsWith('//'), `${index + 1} 行目がコメントです`);
+    }
+  });
+
+  test(`${name}.json は生成しなおしても同じになる`, () => {
+    // 生成物なので手で直すと次の生成で消えます。ずれたら npm run examples です。
+    assert.equal(plain, withoutComments(annotated), '`npm run examples` を実行してください');
+  });
+
+  test(`${name}.json は貼り付けても読める形を保っている`, () => {
+    // JSON.stringify で作り直すと 1 規則が 4 行に散り、注釈つきより読みにくく
+    // なります。行を削るだけにしているので、1 規則 1 行のままです。
+    const rules = plain.split('\n').filter(line => line.trim().startsWith('{ "'));
+    assert.ok(rules.length >= 8, `1 行に収まった規則が ${rules.length} 件しかありません`);
+  });
 }
 
 // ---------------------------------------------------------------------------

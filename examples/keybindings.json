@@ -1,0 +1,43 @@
+[
+  { "key": "j", "command": "list.focusDown", "when": "listFocus && !inputFocus" },
+  { "key": "k", "command": "list.focusUp", "when": "listFocus && !inputFocus" },
+  { "key": "h", "command": "list.collapse", "when": "listFocus && !inputFocus" },
+  { "key": "l", "command": "list.expand", "when": "listFocus && !inputFocus" },
+  { "key": "g g", "command": "list.focusFirst", "when": "listFocus && !inputFocus" },
+  { "key": "shift+g", "command": "list.focusLast", "when": "listFocus && !inputFocus" },
+  { "key": "ctrl+d", "command": "list.focusPageDown", "when": "listFocus && !inputFocus" },
+  { "key": "ctrl+u", "command": "list.focusPageUp", "when": "listFocus && !inputFocus" },
+  { "key": "/", "command": "-list.filter", "when": "listFocus && !inputFocus" },
+  { "key": "enter", "command": "list.select", "when": "listFocus && !inputFocus && !filesExplorerFocus" },
+  { "key": "o", "command": "list.select", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "shift+o", "command": "explorer.openToSide", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "a", "command": "explorer.newFile", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "shift+a", "command": "explorer.newFolder", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "r", "command": "renameFile", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "d", "command": "deleteFile", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "y", "command": "filesExplorer.copy", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "p", "command": "filesExplorer.paste", "when": "filesExplorerFocus && !inputFocus" },
+  {
+    "key": "enter",
+    "command": "explorer.openAndPassFocus",
+    "when": "filesExplorerFocus && foldersViewVisible && !explorerResourceIsFolder && !inputFocus"
+  },
+  {
+    "key": "enter",
+    "command": "list.toggleExpand",
+    "when": "filesExplorerFocus && foldersViewVisible && explorerResourceIsFolder && !inputFocus"
+  },
+  {
+    "key": "ctrl+;",
+    "command": "workbench.action.focusActiveEditorGroup",
+    "when": "!editorTextFocus && !activeWebviewPanelId"
+  },
+  {
+    "key": "ctrl+;",
+    "command": "workbench.action.closeActiveEditor",
+    "when": "!editorTextFocus && activeWebviewPanelId"
+  },
+  { "key": "escape", "command": "workbench.action.focusActiveEditorGroup", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "space l", "command": "workbench.action.navigateRight", "when": "filesExplorerFocus && !inputFocus" },
+  { "key": "space n", "command": "workbench.action.closeSidebar", "when": "filesExplorerFocus && !inputFocus" }
+]

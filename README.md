@@ -350,17 +350,32 @@ VS Code 既定のまま効きます）。オペレータの `c` は `c` のま�
 - Vim の `timeoutlen` にあたる打ち切りはありません。待っているあいだは表示で分かるので、
   手が止まっただけで打鍵が実行されるより確実だと考えています。
 
-すぐ使える設定例を [examples/settings.jsonc](examples/settings.jsonc) に置いています。
-`H` `J` `K` `L` の置き換えから leader 起点のウィンドウ操作まで一式入っているので、
-settings.json に貼り付けてから削っていくのが早いと思います。
+すぐ使える設定例を [examples/](examples/) に置いています。`H` `J` `K` `L` の置き換えから
+leader 起点のウィンドウ操作まで一式入っているので、settings.json に貼り付けてから削っていくのが
+早いと思います。
+
+同じ内容が2つの形で入っています。
+
+| ファイル | 用途 |
+| --- | --- |
+| [settings.json](examples/settings.json) | **貼り付ける用。** 注釈なしで56行 |
+| [settings.jsonc](examples/settings.jsonc) | **読む用。** なぜその割り当てなのか、元の init.vim の行つきで189行 |
+
+注釈が3行に2行を占めるので、貼るときは邪魔になり、読むときは要るという事情です。`.json` は
+`.jsonc` から生成しています（`npm run examples`）ので、直すのは `.jsonc` のほうです。中身が
+一致していることはテストで固定しています。
+
+いちばん外側の波括弧の「中身」だけをコピーしてください。波括弧ごと貼ると settings.json の
+既存の設定を丸ごと置き換えてしまいます。
 
 ### エクスプローラーとターミナル
 
 **エクスプローラーではモードやオペレータは使えません。** ツリービューであってテキスト
 エディターではないため、打鍵が `type` コマンドを通らないからです。ただし `j` `k` `h` `l`
 での移動なら、VS Code の `list.*` コマンドをキーに割り当てることで実現できます。
-例を [examples/keybindings.jsonc](examples/keybindings.jsonc) に置いています
-（settings.json ではなく keybindings.json に書きます）。
+例を [examples/keybindings.json](examples/keybindings.json) に置いています
+（settings.json ではなく keybindings.json に書きます）。理由つきの版は
+[keybindings.jsonc](examples/keybindings.jsonc) です。
 
 **ターミナルではモードやオペレータは使えません。** VS Code のターミナルに打たれたキーを
 拡張機能が横取りする API がないためです（送り込む `sendText` と、シェル統合でコマンド出力を

@@ -62,6 +62,10 @@
     { "before": ["<leader>", "o"], "commands": ["workbench.action.nextEditor"] },
     // nnoremap <leader>i :tabnew<enter>
     { "before": ["<leader>", "i"], "commands": ["workbench.action.files.newUntitledFile"] },
+    // nnoremap <leader>u :-tabnew<enter>
+    // Neovim では現在のタブの「手前」に開く設定にしていました。VS Code に開く位置を
+    // 指定する手段がないので <leader>i と同じ動きですが、手が覚えているので
+    // キーは残しています。
     { "before": ["<leader>", "u"], "commands": ["workbench.action.files.newUntitledFile"] },
 
     // ---- 分割とリサイズ -----------------------------------------------------
@@ -164,6 +168,9 @@
 //   nnoremap <leader>i :tabnew<enter>
 //     workbench.action.files.newUntitledFile は空のファイルを開きます。
 //     既存ファイルを開きたい場合は workbench.action.quickOpen のほうが近いです。
+//   nnoremap <leader>u :-tabnew<enter>
+//     現在のタブの手前に開く相当が VS Code にないため、<leader>i と同じ動きに
+//     なっています。打ち慣れているキーなので、位置の違いは諦めて残しました。
 //
 // 別のキーに譲ったもの
 //   map <leader>/ gc
@@ -180,7 +187,6 @@
 //     出られないため)。
 //
 // 置き換え先がないもの
-//   nnoremap <leader>u :-tabnew<enter>    現在のタブの手前に開く相当がありません
 //   nnoremap <leader>v :set fileformat=unix<enter>:set list!<enter>
 //   nnoremap <leader>x :%!xxd
 //   nnoremap <leader>X :%!xxd -r
