@@ -65,6 +65,8 @@ test('テンプレートの leader マッピングが発火する', () => {
   assert.deepEqual(run('abc', ' /', { remaps }).commands, ['actions.find']);
   assert.deepEqual(run('abc', ' c', { remaps }).commands, ['editor.action.commentLine']);
   assert.deepEqual(run('abc', ' e', { remaps }).commands, ['vimLike.sendToAIPanel']);
+  assert.deepEqual(run('abc', ' r', { remaps }).commands, ['vimLike.sendToTerminal']);
+  assert.deepEqual(run('abc', ' R', { remaps }).commands, ['vimLike.chooseTerminal']);
   assert.deepEqual(run('abc', ' E', { remaps }).commands, ['vimLike.chooseAIPanel']);
   assert.deepEqual(run('abc', ' n', { remaps }).commands, [
     'workbench.view.explorer',

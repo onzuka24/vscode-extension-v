@@ -379,7 +379,8 @@ settings.json に貼り付けてから削っていくのが早いと思います
 
 ```jsonc
 { "before": ["<leader>", "t"], "commands": ["vimLike.openTerminalOutput"] },
-{ "before": ["<leader>", "r"], "commands": ["vimLike.sendToTerminal"] }
+{ "before": ["<leader>", "r"], "commands": ["vimLike.sendToTerminal"] },
+{ "before": ["<leader>", "R"], "commands": ["vimLike.chooseTerminal"] }
 ```
 
 ```
@@ -397,6 +398,22 @@ all good
   ターミナルへ移ってから操作してください。
 - 送り先のターミナルは1つを使い回します。開いているものがあればそれを、なければ作ります。
   新しく作った直後はシェル統合の起動を待ってから送るので、最初の1回も取りこぼしません。
+- `<leader>R`（**Vim Like: Choose Terminal to Send To**）で送り先を選べます。開いている
+  ターミナルが、検出されたシェルとシェル統合の有無つきで並びます。
+
+  ```
+  zsh                     zsh · シェル統合あり · 現在の送り先
+  dev server              node · シェル統合なし (出力を取り込めません)
+  $(add) 新しいターミナル…   シェルは VS Code の一覧から選びます
+  ```
+
+  **シェル統合の有無を一覧に出しているのが要点です。** 無い相手に送るとコマンドは動くのに
+  出力だけが取り込めず、黙って何も追記されません。選ぶ時点で見えていれば取り違えません。
+  終了したターミナルは並びません。
+
+  一覧の末尾から新しいターミナルを開くと、シェルは VS Code 自身の一覧から選べます。
+  検出済みのシェル（zsh、bash、node、python …）を列挙する API は拡張機能側にないため、
+  `workbench.action.terminal.newWithProfile` に委ねています。そのぶん一覧は完全です。
 - 選択範囲があればそれを、なければ現在行を送ります。
 - 色などのエスケープは取り除き、進捗表示の `\r` による上書きも解決してから追記します。
 - 実体は OS の一時ディレクトリ内のファイルです。閉じるときに保存を聞かれず、

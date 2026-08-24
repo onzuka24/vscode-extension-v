@@ -99,6 +99,10 @@
     // ターミナルの表示切替そのものが欲しい場合は Ctrl+` (VS Code 既定) です。
     { "before": ["<leader>", "t"], "commands": ["vimLike.openTerminalOutput"] },
     { "before": ["<leader>", "r"], "commands": ["vimLike.sendToTerminal"] },
+    // 送り先のターミナルを選びます。検出されたシェルとシェル統合の有無が並ぶので、
+    // 出力が取り込めない相手を選んでしまうことがありません。一覧の末尾から
+    // 新しいターミナルを開くと、シェルは VS Code の一覧から選べます。
+    { "before": ["<leader>", "R"], "commands": ["vimLike.chooseTerminal"] },
     // nnoremap <leader>z zi
     { "before": ["<leader>", "z"], "commands": ["editor.toggleFold"] },
     // map <leader>/ gc  (キーは <leader>c に移しました。下の「検索」を参照)
