@@ -103,38 +103,66 @@ export function deactivate(): void {
 // --------------------------------------------------------------------- input
 
 /**
+ * The commands VS Code routes typed text through, each of which an extension may
+ * take over the same way it takes over `type`.
+ *
+ * `type` alone is not enough. The editor's view controller sends a composition —
+ * what an IME produces — through three more of these: `compositionStart` when it
+ * begins, then either `compositionType` or `replacePreviousChar` for each update,
+ * then `compositionEnd`. Which of the two middle ones carries the text depends on
+ * whether the update replaces characters after the caret. Leaving them alone left
+ * a hole big enough to type through: in Normal mode `type` dropped the composing
+ * text, and then the commit arrived on `replacePreviousChar` and went straight
+ * into the buffer (#55).
+ */
+const INPUT_COMMANDS = ['type', 'compositionStart', 'compositionType', 'replacePreviousChar', 'compositionEnd'] as const;
+
+/**
+ * Whether a composition in progress is one we handed to the editor.
+ *
+ * The decision is made once, when the composition starts, and every part of that
+ * composition then follows it. Deciding afresh per command would let a mode
+ * change in the middle of composing split the sequence — the editor would be told
+ * a composition began and never told it ended, or the reverse — and its cursor
+ * controller keeps state across those calls.
+ */
+let delegatingComposition = false;
+
+/**
+ * Whether typed text belongs to VS Code rather than to us. Every one of the input
+ * commands asks this same question, which is the point: a hole in one of them is
+ * a hole in Normal mode.
+ */
+function shouldDelegateInput(): boolean {
+  const editor = vscode.window.activeTextEditor;
+  return !enabled || !editor || !isEditableEditor(editor) || state.mode === 'insert';
+}
+
+/**
  * Overriding `type` is what makes Normal mode a mode: keys that are not bound to
  * a command are swallowed instead of reaching the buffer. The override is global
  * to the whole window, so every path that is not certainly ours delegates to
- * `default:type` — in particular Insert mode and any multi-character text, which
- * is how IME composition results arrive. Getting this wrong breaks typing
- * everywhere, not just in this extension.
+ * `default:type`. Getting this wrong breaks typing everywhere, not just in this
+ * extension.
  */
 function registerTypeInterceptor(context: vscode.ExtensionContext): void {
+  // All of them or none. Owning `type` while another extension owns
+  // `replacePreviousChar` is the shape of the bug this guards against: text would
+  // still reach the buffer in Normal mode, and nothing would say why.
+  const claimed: vscode.Disposable[] = [];
   try {
-    context.subscriptions.push(
-      vscode.commands.registerCommand('type', (args: { text?: string } | undefined) => {
-        const editor = vscode.window.activeTextEditor;
-
-        if (!enabled || !editor || !isEditableEditor(editor) || state.mode === 'insert') {
-          return vscode.commands.executeCommand('default:type', args);
-        }
-
-        const text = args?.text;
-        if (typeof text !== 'string' || text.length === 0) {
-          return vscode.commands.executeCommand('default:type', args);
-        }
-
-        // Normal and Visual mode ignore text input. Anything longer than a single
-        // character is composed text, which has no meaning as a Vim key, so it is
-        // dropped rather than forwarded into the buffer.
-        if ([...text].length !== 1) return undefined;
-
-        return enqueue(() => handleKey(editor, text));
-      })
-    );
+    for (const command of INPUT_COMMANDS) {
+      claimed.push(
+        vscode.commands.registerCommand(command, (args: { text?: string } | undefined) =>
+          handleInputCommand(command, args)
+        )
+      );
+    }
+    context.subscriptions.push(...claimed);
     typeInterceptorReady = true;
   } catch (error) {
+    for (const disposable of claimed) disposable.dispose();
+
     // `type` is a single, window-wide registration. Losing the race to another
     // Vim extension is by far the most common reason to land here, so name the
     // culprit instead of reporting a bare failure.
@@ -146,6 +174,41 @@ function registerTypeInterceptor(context: vscode.ExtensionContext): void {
 
     void vscode.window.showErrorMessage(`Vim Like: キー入力を受け取れないため無効化しました。${cause}`);
   }
+}
+
+function handleInputCommand(command: string, args: { text?: string } | undefined): Thenable<unknown> | undefined {
+  const delegate = (): Thenable<unknown> => vscode.commands.executeCommand(`default:${command}`, args);
+
+  if (command === 'compositionStart') {
+    delegatingComposition = shouldDelegateInput();
+    return delegatingComposition ? delegate() : undefined;
+  }
+
+  if (command === 'compositionEnd') {
+    const wasDelegating = delegatingComposition;
+    delegatingComposition = false;
+    return wasDelegating ? delegate() : undefined;
+  }
+
+  // The two that carry composed text. While a composition we started is running
+  // they follow it, so that switching mode part-way cannot strand the editor with
+  // half a composition applied.
+  if (command === 'compositionType' || command === 'replacePreviousChar') {
+    return delegatingComposition || shouldDelegateInput() ? delegate() : undefined;
+  }
+
+  if (shouldDelegateInput()) return delegate();
+
+  const editor = vscode.window.activeTextEditor;
+  const text = args?.text;
+  if (!editor || typeof text !== 'string' || text.length === 0) return delegate();
+
+  // Normal and Visual mode ignore text input. Anything longer than a single
+  // character is composed text, which has no meaning as a Vim key, so it is
+  // dropped rather than forwarded into the buffer.
+  if ([...text].length !== 1) return undefined;
+
+  return enqueue(() => handleKey(editor, text));
 }
 
 /** Extensions known to register the `type` command, which only one owner may have. */
