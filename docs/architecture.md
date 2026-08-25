@@ -166,27 +166,67 @@ sequenceDiagram
 アダプタが対象行を選択してから `editor.action.indentLines` を呼び、そのあとに `setCursor` が
 選択を置き換えます。Visual モードの `>` が Vim と同じく選択を解くのは、この順序の結果です。
 
-## `type` の乗っ取りと、委譲の判断
+## 入力コマンドの乗っ取りと、委譲の判断
 
 Normal モードが「モード」として成立するのは、**割り当てのないキーを破棄する**からです。
-それを可能にしているのが `type` コマンドのオーバーライドです。
+それを可能にしているのが入力コマンドのオーバーライドです。
 
-ただし `type` はウィンドウ全体で1つしか登録できません。判断を誤ると VS Code 全体で
-文字が打てなくなるため、自分のものだと確実に言えない入力はすべて委譲します。
+**`type` だけでは足りません。** VS Code は打たれた文字を5つのコマンドに振り分けており、
+そのどれもが `type` と同じように差し替えられます。VS Code 自身の登録はこうなっています。
+
+```js
+function ame(s, o) {
+  register(new EditorHandlerCommand("default:" + s, s));
+  register(new EditorHandlerCommand(s, s, o));
+}
+ame("type"); ame("replacePreviousChar"); ame("compositionType");
+ame("compositionStart"); ame("compositionEnd");
+```
+
+IME の変換はこのうち4つを通ります。始まりが `compositionStart`、更新ごとに
+`compositionType` か `replacePreviousChar`、終わりが `compositionEnd` です。中央の2つの
+どちらになるかは、その更新がカーソルより後ろの文字を置き換えるかで決まります。
+
+```js
+compositionType: (text, replacePrevCharCnt, replaceNextCharCnt, positionDelta) => {
+  if (replaceNextCharCnt || positionDelta) executeCommand("compositionType", { ... });
+  else                                     executeCommand("replacePreviousChar", { ... });
+}
+```
+
+`type` しか押さえていなかったとき、日本語入力は Normal モードでもバッファに入っていました
+（[#55](https://github.com/onzuka24/vscode-extension-v/issues/55)）。変換中の表示は `type` で
+届いて破棄されるのに、**確定した文字は `replacePreviousChar` で届いて素通り**していたためです。
+1つ塞ぎ忘れると Normal モードに穴が空く、という関係になっています。
+
+そのため5つとも同じ判断を通します。5つのうち1つでも登録できなければ、取れた分も手放して
+拡張機能ごと無効になります。`type` だけ持っている状態は、まさにこのバグの形だからです。
 
 ```mermaid
 flowchart TD
-    K["キー入力"] --> T["type コマンドが呼ばれる"]
-    T --> Q1{"拡張が有効か"}
-    Q1 -- いいえ --> D["default:type へ委譲<br/>VS Code 本来の動作"]
+    K["キー入力"] --> T["5つの入力コマンドのどれかが呼ばれる"]
+    T --> C{"composition 系か"}
+    C -- はい --> CS{"始まりで委譲すると決めたか"}
+    CS -- はい --> D["default: へ委譲<br/>VS Code 本来の動作"]
+    CS -- いいえ --> X["破棄する"]
+    C -- いいえ --> Q1{"拡張が有効か"}
+    Q1 -- いいえ --> D
     Q1 -- はい --> Q2{"編集可能なエディタか<br/>出力パネル等でないか"}
     Q2 -- いいえ --> D
     Q2 -- はい --> Q3{"Insert モードか"}
     Q3 -- はい --> D
     Q3 -- いいえ --> Q4{"1文字か"}
-    Q4 -- いいえ --> X["破棄する<br/>IME の変換結果など"]
+    Q4 -- いいえ --> X
     Q4 -- はい --> E["engine.handleKey へ"]
 ```
+
+委譲するかどうかは **composition の始まりで一度だけ決め、その変換の最後まで貫きます**。
+コマンドごとに判断し直すと、変換の途中でモードが変わったときに並びが割れます。エディタ側は
+「始まった」と聞いて「終わった」と聞かないまま取り残され、カーソル制御がその状態を持ち越します。
+
+なお IME を有効にしたままでは Normal モードのコマンドも打てません。変換中の `d` と
+コマンドの `d` を区別する手立てがなく、OS の IME を拡張機能から切ることもできないためです。
+Normal モードでは IME を切ってください。
 
 Escape・`Ctrl` 系・矢印キー・`Backspace`・`Enter`・`Delete` は `type` に流れてこないため、
 それらだけ `package.json` の `keybindings` で受けます。
