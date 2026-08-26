@@ -104,14 +104,64 @@ test('マーク名の正規化', () => {
   assert.equal(normalizeMarkName('1'), null);
 });
 
-test('マークはバッファごとに分かれている', () => {
+test('名前付きマークはファイルを横断し、後から付けたほうが勝つ', () => {
+  // issue #58 の本体。Vim は a-z をバッファごとに持ちますが、ファイルの移動が
+  // 1打鍵で済む環境では、横断するほうが使い道が広いという判断です。
   const marks = new MarkStore();
   marks.set('file:///a.ts', 'a', pos(10, 2));
-  marks.set('file:///b.ts', 'a', pos(3, 0));
 
-  assert.deepEqual(marks.get('file:///a.ts', 'a'), pos(10, 2));
-  assert.deepEqual(marks.get('file:///b.ts', 'a'), pos(3, 0));
-  assert.equal(marks.get('file:///c.ts', 'a'), undefined);
+  const fromElsewhere = marks.get('file:///b.ts', 'a');
+  assert.deepEqual(fromElsewhere, { bufferId: 'file:///a.ts', position: pos(10, 2) });
+
+  marks.set('file:///b.ts', 'a', pos(3, 0));
+  assert.deepEqual(marks.get('file:///a.ts', 'a'), {
+    bufferId: 'file:///b.ts',
+    position: pos(3, 0)
+  });
+});
+
+test('モーションに渡す読み取りは、別ファイルのマークを返さない', () => {
+  // 別ファイルの位置を渡すと、その行番号で「このファイル」を動いてしまいます。
+  const marks = new MarkStore();
+  marks.set('file:///a.ts', 'a', pos(10, 2));
+
+  assert.deepEqual(marks.reader('file:///a.ts').get('a'), pos(10, 2));
+  assert.equal(marks.reader('file:///b.ts').get('a'), undefined);
+});
+
+test('` の戻り先はファイルごとに別々のまま', () => {
+  // 移動のたびに書き換わるものなので、共有すると2つ目のファイルでの数回の
+  // ジャンプで、1つ目のファイルへの戻り道が消えてしまいます。
+  const marks = new MarkStore();
+  marks.set('file:///a.ts', '`', pos(7, 0));
+  marks.set('file:///b.ts', '`', pos(1, 0));
+
+  assert.deepEqual(marks.get('file:///a.ts', '`'), {
+    bufferId: 'file:///a.ts',
+    position: pos(7, 0)
+  });
+  assert.deepEqual(marks.get('file:///b.ts', '`'), {
+    bufferId: 'file:///b.ts',
+    position: pos(1, 0)
+  });
+  assert.equal(marks.get('file:///c.ts', '`'), undefined);
+});
+
+test(':delmarks は横断して消す', () => {
+  const marks = new MarkStore();
+  marks.set('file:///a.ts', 'a', pos(1, 0));
+  assert.equal(marks.delete('a'), true);
+  assert.equal(marks.get('file:///b.ts', 'a'), undefined);
+});
+
+test(':delmarks! は名前付きだけを消し、戻り先は残す', () => {
+  const marks = new MarkStore();
+  marks.set('file:///a.ts', 'a', pos(1, 0));
+  marks.set('file:///a.ts', '`', pos(5, 0));
+
+  marks.clearNamed();
+  assert.equal(marks.get('file:///a.ts', 'a'), undefined);
+  assert.deepEqual(marks.get('file:///a.ts', '`')?.position, pos(5, 0));
 });
 
 test('マーク名にならない名前は保存されない', () => {
@@ -133,8 +183,8 @@ test(':marks は付けたマークを行の中身つきで並べる', () => {
   assert.equal(session.markLists.length, 1);
 
   assert.deepEqual(session.markLists[0], [
-    { name: 'a', line: 0, character: 0, text: 'first line' },
-    { name: 'b', line: 2, character: 0, text: 'third line' }
+    { name: 'a', line: 0, character: 0, bufferId: 'buffer', text: 'first line' },
+    { name: 'b', line: 2, character: 0, bufferId: 'buffer', text: 'third line' }
   ]);
 });
 

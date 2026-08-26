@@ -132,7 +132,7 @@ export class VimEngine {
 
   /** The marks set in one buffer, for whatever wants to draw them. */
   public listMarks(bufferId: string): MarkEntry[] {
-    return this.marks.list(bufferId);
+    return this.marks.listIn(bufferId);
   }
 
   public setExCommands(table: ExCommandTable): void {
@@ -390,11 +390,14 @@ export class VimEngine {
       }
 
       case 'marks': {
+        // Another document's line is not ours to read, so its text is left empty
+        // and the adapter names the file instead — the same choice Vim makes.
         const entries = this.marks.list(buffer.id).map(mark => ({
           name: mark.name,
           line: mark.position.line,
           character: mark.position.character,
-          text: buffer.lineAt(clampLine(buffer, mark.position.line))
+          bufferId: mark.bufferId,
+          text: mark.bufferId === buffer.id ? buffer.lineAt(clampLine(buffer, mark.position.line)) : ''
         }));
         actions.push(
           entries.length === 0
@@ -405,8 +408,9 @@ export class VimEngine {
       }
 
       case 'deleteMarks': {
-        if (parsed.all) this.marks.clearNamed(buffer.id);
-        else for (const name of parsed.names) this.marks.delete(buffer.id, name);
+        // Named marks are shared, so deleting one deletes it everywhere.
+        if (parsed.all) this.marks.clearNamed();
+        else for (const name of parsed.names) this.marks.delete(name);
         break;
       }
 
@@ -456,6 +460,65 @@ export class VimEngine {
     return { ...closed, replay: [...state.pendingKeys, 'n'] };
   }
 
+  /** The mark this command names, when it lives in another document. */
+  private markInAnotherFile(command: Command, buffer: TextBuffer): MarkEntry | null {
+    if (command.motion !== '`' && command.motion !== "'") return null;
+
+    const name = command.motionArgument;
+    if (name === undefined) return null;
+
+    const found = this.marks.get(buffer.id, name);
+    if (!found || found.bufferId === buffer.id) return null;
+    return { name, ...found };
+  }
+
+  /**
+   * `` `a `` onto a mark in another document.
+   *
+   * Only a bare jump can cross files. An operator is refused rather than
+   * half-applied, which is what Vim does with its own cross-file marks: `` d`A ``
+   * reports an error and changes nothing. A Visual selection cannot span two
+   * documents at all. Both are said out loud, because a key that silently does
+   * nothing reads as a broken feature.
+   */
+  private jumpToOtherFile(
+    state: VimState,
+    command: Command,
+    buffer: TextBuffer,
+    cursor: Position,
+    mark: MarkEntry
+  ): EngineResult {
+    if (command.operator || isVisual(state.mode)) {
+      const what = command.operator ? 'オペレータ' : 'Visual モードの選択';
+      return {
+        ...this.unchanged(state),
+        actions: [
+          {
+            type: 'notify',
+            message: `Vim Like: マーク ${mark.name} は別のファイルにあるため、${what}と組み合わせられません`
+          }
+        ]
+      };
+    }
+
+    // The breadcrumb belongs to the file being left, so `` `` `` there comes back
+    // to this spot. Set before leaving, for the same reason as any other jump.
+    this.marks.set(buffer.id, JUMP_MARK, cursor);
+
+    return {
+      state: { ...state, pendingKeys: '', remapPending: [], desiredColumn: mark.position.character },
+      actions: [
+        {
+          type: 'openFile',
+          bufferId: mark.bufferId,
+          position: mark.position,
+          toFirstNonBlank: command.motion === "'"
+        }
+      ],
+      handled: true
+    };
+  }
+
   /** A motion that could not move. Only a search says why; the rest are silent. */
   private failedMotion(state: VimState, command: Command): EngineResult {
     return SEARCH_MOTIONS.has(command.motion ?? '') ? this.searchFailure(state) : this.unchanged(state);
@@ -490,6 +553,13 @@ export class VimEngine {
   }
 
   private dispatch(state: VimState, command: Command, buffer: TextBuffer, cursor: Position): EngineResult {
+    // A mark may now point into another document, which no motion can express: a
+    // motion returns a position in the buffer it was handed, and that position
+    // would be the same line number in the wrong file. Caught here, before the
+    // motion is asked, so `` `a `` never silently lands on a stranger's line.
+    const elsewhere = this.markInAnotherFile(command, buffer);
+    if (elsewhere) return this.jumpToOtherFile(state, command, buffer, cursor, elsewhere);
+
     // `*` and `#` are `n` over the word under the cursor. Setting the search here
     // rather than inside the motion keeps motions pure functions of their context.
     let origin = cursor;

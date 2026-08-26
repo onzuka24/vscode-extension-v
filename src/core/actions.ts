@@ -42,12 +42,29 @@ export type Action =
    * about the list depends on that choice.
    */
   | { readonly type: 'showMarks'; readonly entries: readonly MarkListing[] }
+  /**
+   * `` `a `` onto a mark that lives in another document. A motion cannot express
+   * this — its contract is a position in the buffer it was handed — so the core
+   * names the document instead and the adapter opens it.
+   */
+  | {
+      readonly type: 'openFile';
+      readonly bufferId: string;
+      readonly position: Position;
+      /** `'a` lands on the first non-blank of the line; `` `a `` on the column. */
+      readonly toFirstNonBlank: boolean;
+    }
   | { readonly type: 'reveal' };
 
 export interface MarkListing {
   readonly name: string;
   readonly line: number;
   readonly character: number;
-  /** The marked line's text, so the list can be read without jumping first. */
+  /** The document the mark points into, which may not be the current one. */
+  readonly bufferId: string;
+  /**
+   * The marked line's text. Empty for a mark in another document: the core only
+   * ever holds the buffer it was given, so that line is not ours to read.
+   */
   readonly text: string;
 }
