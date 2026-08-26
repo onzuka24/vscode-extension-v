@@ -27,6 +27,15 @@ test('Enter で実行し、Normal モードへ戻る', () => {
   assert.equal(session.pending, '');
 });
 
+const CLOSE = 'workbench.action.closeActiveEditor';
+
+/**
+ * 閉じる系の `:` コマンドの末尾に必ず付きます。エディターを1つも残さずに閉じると、
+ * 打ち込む先も動かす先もなくなってキーボードが効かなくなったように見えるためです
+ * (#57)。何も残っていないときだけファイルツリーを開いて着地させます。
+ */
+const REVEAL = 'vimLike.revealFileTreeIfEmpty';
+
 test('init.vim が使う4つが揃っている', () => {
   assert.deepEqual(run(LINES, ':w<CR>').commands, ['workbench.action.files.save']);
   assert.deepEqual(run(LINES, ':sp<CR>').commands, ['workbench.action.splitEditorDown']);
@@ -35,12 +44,12 @@ test('init.vim が使う4つが揃っている', () => {
 });
 
 test('反射的に打つ q 系も受け付ける', () => {
-  assert.deepEqual(run(LINES, ':q<CR>').commands, ['workbench.action.closeActiveEditor']);
-  assert.deepEqual(run(LINES, ':q!<CR>').commands, ['workbench.action.revertAndCloseActiveEditor']);
-  assert.deepEqual(run(LINES, ':wq<CR>').commands, [
-    'workbench.action.files.save',
-    'workbench.action.closeActiveEditor'
+  assert.deepEqual(run(LINES, ':q<CR>').commands, [CLOSE, REVEAL]);
+  assert.deepEqual(run(LINES, ':q!<CR>').commands, [
+    'workbench.action.revertAndCloseActiveEditor',
+    REVEAL
   ]);
+  assert.deepEqual(run(LINES, ':wq<CR>').commands, ['workbench.action.files.save', CLOSE, REVEAL]);
   assert.deepEqual(run(LINES, ':x<CR>').commands, run(LINES, ':wq<CR>').commands);
 });
 
@@ -124,26 +133,44 @@ const CLOSE_ALL = 'workbench.action.closeAllEditors';
 const SAVE_ALL = 'workbench.action.files.saveAll';
 
 test(':qa はすべてのエディターを閉じる', () => {
-  assert.deepEqual(run(LINES, ':qa<CR>').commands, [CLOSE_ALL]);
-  assert.deepEqual(run(LINES, ':qall<CR>').commands, [CLOSE_ALL]);
+  assert.deepEqual(run(LINES, ':qa<CR>').commands, [CLOSE_ALL, REVEAL]);
+  assert.deepEqual(run(LINES, ':qall<CR>').commands, [CLOSE_ALL, REVEAL]);
 });
 
 test(':wqa と :xa はすべて保存してから閉じる', () => {
-  assert.deepEqual(run(LINES, ':wqa<CR>').commands, [SAVE_ALL, CLOSE_ALL]);
-  assert.deepEqual(run(LINES, ':xa<CR>').commands, [SAVE_ALL, CLOSE_ALL]);
-  assert.deepEqual(run(LINES, ':wqall<CR>').commands, [SAVE_ALL, CLOSE_ALL]);
+  assert.deepEqual(run(LINES, ':wqa<CR>').commands, [SAVE_ALL, CLOSE_ALL, REVEAL]);
+  assert.deepEqual(run(LINES, ':xa<CR>').commands, [SAVE_ALL, CLOSE_ALL, REVEAL]);
+  assert.deepEqual(run(LINES, ':wqall<CR>').commands, [SAVE_ALL, CLOSE_ALL, REVEAL]);
 });
 
 test(':qa! は :qa と同じで、未保存の確認は VS Code に任せる', () => {
   // 全体を破棄して閉じるコマンドが VS Code に存在しないため。
   // 断るよりは閉じて確認を出すほうがましだという判断で、README にも書いてある。
-  assert.deepEqual(run(LINES, ':qa!<CR>').commands, [CLOSE_ALL]);
+  assert.deepEqual(run(LINES, ':qa!<CR>').commands, [CLOSE_ALL, REVEAL]);
   assert.deepEqual(run(LINES, ':qa!<CR>').messages, [], '黙って別のことをするわけではない');
 });
 
 test('1つだけ閉じる :q と全部閉じる :qa は別物のまま', () => {
-  assert.deepEqual(run(LINES, ':q<CR>').commands, ['workbench.action.closeActiveEditor']);
-  assert.deepEqual(run(LINES, ':q!<CR>').commands, ['workbench.action.revertAndCloseActiveEditor']);
+  assert.deepEqual(run(LINES, ':q<CR>').commands, [CLOSE, REVEAL]);
+  assert.deepEqual(run(LINES, ':qa<CR>').commands, [CLOSE_ALL, REVEAL]);
+});
+
+test('閉じない :` コマンドには着地処理が付かない', () => {
+  // 何も閉じていないのにツリーを開いたら、ただの邪魔になります。
+  for (const line of [':w', ':sp', ':vs', ':tabnew', ':tabnext']) {
+    const { commands } = run(LINES, `${line}<CR>`);
+    assert.ok(!commands.includes(REVEAL), `${line} に ${REVEAL} が付いています`);
+  }
+});
+
+test('閉じる :` コマンドには必ず着地処理が付く', () => {
+  // 1つ漏らすと、そのコマンドだけキーボードが死んだように見えます。
+  const closing = [':q', ':q!', ':quit', ':wq', ':x', ':xit', ':tabclose',
+                   ':qa', ':qall', ':qa!', ':wqa', ':wqall', ':xa', ':xall'];
+  for (const line of closing) {
+    const { commands } = run(LINES, `${line}<CR>`);
+    assert.equal(commands.at(-1), REVEAL, `${line} の末尾が ${REVEAL} ではありません`);
+  }
 });
 
 test('綴りを間違えれば従来どおり断る', () => {

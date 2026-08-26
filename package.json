@@ -77,6 +77,10 @@
         "title": "Vim Like: Show Log"
       },
       {
+        "command": "vimLike.revealFileTreeIfEmpty",
+        "title": "Vim Like: Reveal File Tree If Nothing Is Open"
+      },
+      {
         "command": "vimLike.toggleFileTree",
         "title": "Vim Like: Toggle File Tree"
       },

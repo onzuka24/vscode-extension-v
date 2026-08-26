@@ -388,6 +388,21 @@ function registerCommands(context: vscode.ExtensionContext): void {
   // `<leader>e` and `<leader>E`. What travels to the panel is a reference to the
   // line or selection, not its text — see `core/aiPanels.ts` for why that is the
   // only thing an already-open conversation will take.
+  // Appended to every `:` command that closes an editor. In Vim `:qa` ends the
+  // session; here the window stays behind, and with the last tab gone there is
+  // nothing to type into and nothing to move around in — which reads as the
+  // keyboard having stopped working (#57).
+  register('vimLike.revealFileTreeIfEmpty', async () => {
+    // Tabs rather than `visibleTextEditors`: a Git Graph or settings tab is not
+    // something to type into, but it is something to act in, so the window is not
+    // stranded and nothing should be forced open.
+    const stranded = vscode.window.tabGroups.all.every(group => group.tabs.length === 0);
+    if (!stranded) return;
+
+    fileTreeShowing = true;
+    await vscode.commands.executeCommand('workbench.files.action.focusFilesExplorer');
+  });
+
   // `<leader>n`, and the same keys from inside the tree. Routed through one
   // command in both places so that closing from the tree keeps the belief above
   // in step; only VS Code's own sidebar keys can get it out of step.

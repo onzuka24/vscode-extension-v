@@ -38,6 +38,16 @@ const SAVE = 'workbench.action.files.save';
 const SAVE_ALL = 'workbench.action.files.saveAll';
 const CLOSE = 'workbench.action.closeActiveEditor';
 const CLOSE_ALL = 'workbench.action.closeAllEditors';
+/**
+ * Runs after anything that closes an editor.
+ *
+ * In Vim `:qa` ends the session; here the window stays, and closing the last tab
+ * leaves nothing to type into and nothing to move around in — the keyboard
+ * appears to stop working (#57). Landing on the file tree instead keeps the
+ * window usable: `j` and `k` move, `Enter` opens the next file. It only acts when
+ * nothing at all is left open, so `:q` with other tabs still there is unaffected.
+ */
+const REVEAL_IF_EMPTY = 'vimLike.revealFileTreeIfEmpty';
 
 /**
  * `!` is accepted where Vim accepts it, but only `:q!` differs in what it does:
@@ -54,23 +64,23 @@ const COMMANDS: Readonly<Record<string, readonly string[]>> = {
   w: [SAVE],
   'w!': [SAVE],
   write: [SAVE],
-  q: [CLOSE],
-  quit: [CLOSE],
-  'q!': ['workbench.action.revertAndCloseActiveEditor'],
-  'quit!': ['workbench.action.revertAndCloseActiveEditor'],
-  wq: [SAVE, CLOSE],
-  'wq!': [SAVE, CLOSE],
-  x: [SAVE, CLOSE],
-  xit: [SAVE, CLOSE],
-  qa: [CLOSE_ALL],
-  qall: [CLOSE_ALL],
-  'qa!': [CLOSE_ALL],
-  'qall!': [CLOSE_ALL],
-  wqa: [SAVE_ALL, CLOSE_ALL],
-  'wqa!': [SAVE_ALL, CLOSE_ALL],
-  wqall: [SAVE_ALL, CLOSE_ALL],
-  xa: [SAVE_ALL, CLOSE_ALL],
-  xall: [SAVE_ALL, CLOSE_ALL],
+  q: [CLOSE, REVEAL_IF_EMPTY],
+  quit: [CLOSE, REVEAL_IF_EMPTY],
+  'q!': ['workbench.action.revertAndCloseActiveEditor', REVEAL_IF_EMPTY],
+  'quit!': ['workbench.action.revertAndCloseActiveEditor', REVEAL_IF_EMPTY],
+  wq: [SAVE, CLOSE, REVEAL_IF_EMPTY],
+  'wq!': [SAVE, CLOSE, REVEAL_IF_EMPTY],
+  x: [SAVE, CLOSE, REVEAL_IF_EMPTY],
+  xit: [SAVE, CLOSE, REVEAL_IF_EMPTY],
+  qa: [CLOSE_ALL, REVEAL_IF_EMPTY],
+  qall: [CLOSE_ALL, REVEAL_IF_EMPTY],
+  'qa!': [CLOSE_ALL, REVEAL_IF_EMPTY],
+  'qall!': [CLOSE_ALL, REVEAL_IF_EMPTY],
+  wqa: [SAVE_ALL, CLOSE_ALL, REVEAL_IF_EMPTY],
+  'wqa!': [SAVE_ALL, CLOSE_ALL, REVEAL_IF_EMPTY],
+  wqall: [SAVE_ALL, CLOSE_ALL, REVEAL_IF_EMPTY],
+  xa: [SAVE_ALL, CLOSE_ALL, REVEAL_IF_EMPTY],
+  xall: [SAVE_ALL, CLOSE_ALL, REVEAL_IF_EMPTY],
   sp: ['workbench.action.splitEditorDown'],
   split: ['workbench.action.splitEditorDown'],
   vs: ['workbench.action.splitEditor'],
@@ -79,7 +89,7 @@ const COMMANDS: Readonly<Record<string, readonly string[]>> = {
   // Vim's tab page holds a whole window layout, which is closer to an editor
   // group than to a tab; `:tabnew` opening an empty buffer is what it is used for.
   tabnew: ['workbench.action.files.newUntitledFile'],
-  tabclose: [CLOSE],
+  tabclose: [CLOSE, REVEAL_IF_EMPTY],
   tabnext: ['workbench.action.nextEditor'],
   tabprevious: ['workbench.action.previousEditor']
 };
