@@ -21,7 +21,7 @@ import { SearchState, compilePattern, wordSearchAt } from './search';
 import { SPECIAL_KEYS, describeKeys, isSpecialKey } from './keys';
 import { Command, awaitsLiteralKey, parse } from './parser';
 import { JUMP_MARK, MarkEntry, MarkStore } from './marks';
-import { RegisterStore } from './registers';
+import { RegisterStore, isClipboardRegister } from './registers';
 import { RemapTable } from './remap';
 import { previousPosition } from './scan';
 import { resolveTextObject } from './textobjects';
@@ -117,6 +117,16 @@ export class VimEngine {
   private remaps: RemapTable = RemapTable.empty();
   /** `:` names the user added, kept beside the built-in table. */
   private exCommands: ExCommandTable = {};
+  /**
+   * Which register the unnamed operations use — `yy`, `dd`, `p` with no `"x`.
+   *
+   * Vim spells this `clipboard=unnamed`. The reason to want it here is narrower
+   * than in Vim: what gets yanked is usually on its way to an AI panel or another
+   * application, and a register only this extension can see is a dead end (#59).
+   * Naming a register explicitly (`"ayy`, `"+p`) always wins over this.
+   */
+  private defaultRegister: string | undefined = undefined;
+
   /** The pattern `n`, `N` and a bare `/` repeat. Outlives any single keystroke. */
   private lastSearch: SearchState | null = null;
 
@@ -129,6 +139,39 @@ export class VimEngine {
   private pendingInsert: { readonly command: Command; readonly start: Position } | null = null;
   /** Guards `lastChange` while `.` re-runs it, so a repeat never records itself. */
   private repeating = false;
+
+  /** `undefined` restores Vim's own default: the extension's unnamed register. */
+  public setDefaultRegister(name: string | undefined): void {
+    this.defaultRegister = name;
+  }
+
+  /** Hands the engine what the system clipboard holds, so `"+p` can be synchronous. */
+  public setClipboard(text: string): void {
+    this.registers.setClipboard(text);
+  }
+
+  /**
+   * Whether the next paste will read the clipboard, so the adapter knows to fetch
+   * it. `"*` and `"+` are the same place, so both count.
+   */
+  public pasteWouldReadClipboard(register: string | undefined): boolean {
+    return isClipboardRegister(this.resolveRegister(register));
+  }
+
+  /** An explicit `"x` always wins; only the unnamed case follows the setting. */
+  private resolveRegister(name: string | undefined): string | undefined {
+    return name === undefined || name === '' ? this.defaultRegister : name;
+  }
+
+  /**
+   * Writes a register and reports what the outside world now needs to be told.
+   * Returned as actions rather than done here, so that a yank reaching the system
+   * clipboard is visible in the same list as the edit that produced it.
+   */
+  private writeRegister(name: string | undefined, content: RegisterContent): Action[] {
+    const toClipboard = this.registers.write(this.resolveRegister(name), content);
+    return toClipboard ? [{ type: 'setClipboard', text: content.text }] : [];
+  }
 
   /** The marks set in one buffer, for whatever wants to draw them. */
   public listMarks(bufferId: string): MarkEntry[] {
@@ -712,9 +755,8 @@ export class VimEngine {
 
     const origin = isVisual(state.mode) ? startOf(target, cursor) : cursor;
     const outcome = applyOperator(operator, buffer, target, origin);
-    this.registers.write(command.register, outcome.register);
 
-    const actions: Action[] = [];
+    const actions: Action[] = this.writeRegister(command.register, outcome.register);
     if (outcome.edit) actions.push({ type: 'edit', range: outcome.edit.range, text: outcome.edit.text });
     actions.push({ type: 'setCursor', position: outcome.cursor, toFirstNonBlank: outcome.toFirstNonBlank });
     actions.push({ type: 'setMode', mode: outcome.mode });
@@ -995,7 +1037,7 @@ export class VimEngine {
     if (start === end) return this.unchanged(state);
 
     const range: Range = { start: pos(cursor.line, start), end: pos(cursor.line, end) };
-    this.registers.write(command.register, {
+    const copied = this.writeRegister(command.register, {
       text: buffer.lineAt(cursor.line).slice(start, end),
       kind: 'characterwise'
     });
@@ -1003,6 +1045,7 @@ export class VimEngine {
     return {
       state: { ...state, mode: 'normal', desiredColumn: start, visualAnchor: null, commandLine: null },
       actions: [
+        ...copied,
         { type: 'edit', range, text: '' },
         { type: 'setCursor', position: pos(cursor.line, start), toFirstNonBlank: false },
         { type: 'setMode', mode: 'normal' },
@@ -1018,7 +1061,7 @@ export class VimEngine {
     const end = Math.min(cursor.character + command.count, length);
     const range: Range = { start: cursor, end: pos(cursor.line, end) };
 
-    this.registers.write(command.register, {
+    const copied = this.writeRegister(command.register, {
       text: buffer.lineAt(cursor.line).slice(cursor.character, end),
       kind: 'characterwise'
     });
@@ -1026,6 +1069,7 @@ export class VimEngine {
     return {
       state: { mode: 'insert', pendingKeys: '', remapPending: [], desiredColumn: cursor.character, visualAnchor: null, commandLine: null },
       actions: [
+        ...copied,
         { type: 'edit', range, text: '' },
         { type: 'setCursor', position: cursor, toFirstNonBlank: false },
         { type: 'setMode', mode: 'insert' },
@@ -1042,7 +1086,7 @@ export class VimEngine {
     cursor: Position,
     before: boolean
   ): EngineResult {
-    const content = this.registers.read(command.register);
+    const content = this.registers.read(this.resolveRegister(command.register));
     if (!content) return this.unchanged(state);
 
     if (isVisual(state.mode)) return this.pasteOverSelection(state, command, buffer, cursor, content);
@@ -1076,12 +1120,13 @@ export class VimEngine {
         ? { text: sliceRange(buffer, target.range), kind: 'characterwise' as const }
         : { text: linewiseText(buffer, target.startLine, target.endLine), kind: 'linewise' as const };
 
-    this.registers.write(undefined, replaced);
+    const copied = this.writeRegister(undefined, replaced);
     const text = content.text.split(/\r\n|\n/).join(buffer.eol);
 
     return {
       state: { mode: 'normal', pendingKeys: '', remapPending: [], desiredColumn: range.start.character, visualAnchor: null, commandLine: null },
       actions: [
+        ...copied,
         { type: 'edit', range, text },
         { type: 'setCursor', position: range.start, toFirstNonBlank: false },
         { type: 'setMode', mode: 'normal' },

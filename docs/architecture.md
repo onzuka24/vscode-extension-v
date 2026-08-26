@@ -19,7 +19,7 @@ vscode-extension-v/
 │   │   ├── textobjects.ts     テキストオブジェクト（iw aw i( a" …）
 │   │   ├── operators.ts       オペレータの分類（d c y / > < / gu gU g~）と貼り付け
 │   │   ├── case.ts            大文字小文字の変換（gu gU g~ と Visual の u U ~）
-│   │   ├── registers.ts       レジスタの保管庫
+│   │   ├── registers.ts       レジスタの保管庫（クリップボードも1つのレジスタとして持つ）
 │   │   ├── marks.ts           マークの保管庫（名前付きは横断、戻り先はファイルごと）
 │   │   ├── remap.ts           ユーザー定義のキー置き換えの表と照合
 │   │   ├── parser.ts          キー列 → コマンドオブジェクト

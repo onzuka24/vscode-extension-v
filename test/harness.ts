@@ -25,6 +25,8 @@ export interface Session {
   readonly indents: readonly IndentRequest[];
   /** Messages the engine asked the editor to show, in order. */
   readonly messages: readonly string[];
+  /** Text the engine asked to be put in the system clipboard, in order. */
+  readonly clipboardWrites: readonly string[];
   /** Half-typed sequence still being held, as the status bar would render it. */
   readonly pending: string;
   /** `:marks` listings the engine produced, in order. */
@@ -50,6 +52,10 @@ export interface IndentRequest {
 
 export interface RunOptions {
   readonly cursor?: Position;
+  /** `'+'` makes the unnamed operations use the clipboard, as the setting does. */
+  readonly defaultRegister?: string;
+  /** What the system clipboard holds before the keys are fed. */
+  readonly clipboard?: string;
   readonly eol?: string;
   readonly mode?: Mode;
   readonly remaps?: RemapConfiguration;
@@ -64,11 +70,14 @@ interface Editor {
   commands: string[];
   indents: IndentRequest[];
   messages: string[];
+  clipboardWrites: string[];
   markLists: (readonly MarkListing[])[];
 }
 
 export function run(initial: string, keys: string, options: RunOptions = {}): Session {
   const engine = new VimEngine();
+  if (options.defaultRegister !== undefined) engine.setDefaultRegister(options.defaultRegister);
+  if (options.clipboard !== undefined) engine.setClipboard(options.clipboard);
   let leader = DEFAULT_LEADER;
   if (options.remaps) {
     const { table, problems } = RemapTable.from(options.remaps);
@@ -87,6 +96,7 @@ export function run(initial: string, keys: string, options: RunOptions = {}): Se
     commands: [],
     indents: [],
     messages: [],
+    clipboardWrites: [],
     markLists: []
   };
 
@@ -102,6 +112,7 @@ export function run(initial: string, keys: string, options: RunOptions = {}): Se
     commands: editor.commands,
     indents: editor.indents,
     messages: editor.messages,
+    clipboardWrites: editor.clipboardWrites,
     pending: describePending(editor.state, leader),
     markLists: editor.markLists
   };
@@ -156,6 +167,7 @@ function apply(editor: Editor, result: { state: VimState; actions: readonly Acti
       const { startLine, endLine, direction, levels } = action;
       editor.indents.push({ startLine, endLine, direction, levels });
     } else if (action.type === 'notify') editor.messages.push(action.message);
+    else if (action.type === 'setClipboard') editor.clipboardWrites.push(action.text);
     else if (action.type === 'showMarks') editor.markLists.push(action.entries);
   }
 

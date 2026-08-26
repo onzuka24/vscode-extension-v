@@ -241,6 +241,8 @@ async function handleKey(editor: vscode.TextEditor, key: string): Promise<void> 
  * what makes remapping non-recursive.
  */
 async function feed(editor: vscode.TextEditor, key: string, literal: boolean): Promise<void> {
+  await syncClipboardBeforePaste(key);
+
   const buffer = new DocumentBuffer(editor.document);
   const cursor = readCursor(editor, state.mode);
   const result = literal
@@ -257,6 +259,38 @@ async function feed(editor: vscode.TextEditor, key: string, literal: boolean): P
   for (const replayed of result.replay ?? []) {
     await feed(editor, replayed, true);
   }
+}
+
+/**
+ * Reads the system clipboard in, just before a key that might paste it out.
+ *
+ * The clipboard API is asynchronous and the engine is not, so the content has to
+ * be in hand before the keystroke is handled. Doing it for every key would put an
+ * IPC round trip on every letter typed, and doing it only on activation would go
+ * stale the moment anything else copied — including `Cmd+C` in this same window,
+ * which changes the clipboard without the window ever losing focus.
+ *
+ * `p` and `P` are the only keys that read a register, so they are the only ones
+ * that need this. A register named ahead of them (`"ap`) is already in
+ * `pendingKeys`, which is what decides whether the clipboard is even involved.
+ */
+async function syncClipboardBeforePaste(key: string): Promise<void> {
+  if (key !== 'p' && key !== 'P') return;
+  if (!engine.pasteWouldReadClipboard(registerAhead(state.pendingKeys))) return;
+
+  try {
+    engine.setClipboard(await vscode.env.clipboard.readText());
+  } catch (error) {
+    // A clipboard that cannot be read leaves the last known content in place,
+    // which is a better paste than none.
+    console.error('Vim Like failed to read the clipboard', error);
+  }
+}
+
+/** The register named by a half-typed command, as in the `a` of `"ap`. */
+function registerAhead(pendingKeys: string): string | undefined {
+  const named = /"(.)/.exec(pendingKeys);
+  return named?.[1];
 }
 
 async function commit(editor: vscode.TextEditor, result: EngineResult): Promise<void> {
@@ -521,6 +555,8 @@ function loadRemaps(): void {
   const ex = compileExCommands(settings.get<Record<string, string[]>>('exCommands', {}));
   engine.setExCommands(ex.table);
   problems.push(...ex.problems);
+
+  engine.setDefaultRegister(settings.get<string>('defaultRegister', 'unnamed') === 'clipboard' ? '+' : undefined);
 
   const ai = compileAiPanels(settings.get<unknown>('aiPanels'));
   aiPanels = ai.panels;
