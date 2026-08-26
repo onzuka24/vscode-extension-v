@@ -289,11 +289,16 @@ interface MarkPick extends vscode.QuickPickItem {
  * would have made, including leaving a breadcrumb for `` `` ``.
  */
 async function showMarkPicker(editor: vscode.TextEditor, entries: readonly MarkListing[]): Promise<void> {
+  const here = editor.document.uri.toString();
+
   const items: MarkPick[] = entries.map(entry => ({
     name: entry.name,
     label: entry.name === '`' ? '` — 直前の位置' : entry.name,
     description: `${entry.line + 1}:${entry.character + 1}`,
-    detail: entry.text.trim() === '' ? '(空行)' : entry.text.trim()
+    // A mark in another file names that file; one in this file shows its line.
+    // Vim's `:marks` makes the same swap, and for the same reason: the line's
+    // text is only worth showing when it is a line you are looking at.
+    detail: entry.bufferId === here ? textOf(entry) : vscode.workspace.asRelativePath(vscode.Uri.parse(entry.bufferId))
   }));
 
   const picked = await vscode.window.showQuickPick(items, {
@@ -308,6 +313,10 @@ async function showMarkPicker(editor: vscode.TextEditor, entries: readonly MarkL
     await feed(editor, '`', true);
     await feed(editor, picked.name, true);
   });
+}
+
+function textOf(entry: MarkListing): string {
+  return entry.text.trim() === '' ? '(空行)' : entry.text.trim();
 }
 
 function selectionKey(selection: vscode.Selection): string {

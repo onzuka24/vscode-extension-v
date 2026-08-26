@@ -52,8 +52,28 @@ test('マークの一覧は名前順で返る', () => {
   assert.deepEqual(marks.list('file:///a.ts')[0]?.position, pos(2, 4));
 });
 
-test('マークの一覧はバッファをまたがない', () => {
+test('一覧は別ファイルのマークも含む', () => {
+  // 名前付きマークは横断するので、どのファイルから見ても同じものが並びます。
   const marks = new MarkStore();
   marks.set('file:///a.ts', 'a', pos(1, 0));
-  assert.deepEqual(marks.list('file:///b.ts'), []);
+
+  assert.deepEqual(marks.list('file:///b.ts'), [
+    { name: 'a', bufferId: 'file:///a.ts', position: pos(1, 0) }
+  ]);
+});
+
+test('ガターに出すのは、そのファイルにあるマークだけ', () => {
+  // ガターは行番号の横に描くので、別ファイルの行番号を出すと嘘になります。
+  const marks = new MarkStore();
+  marks.set('file:///a.ts', 'a', pos(1, 0));
+  marks.set('file:///b.ts', 'b', pos(4, 2));
+
+  assert.deepEqual(
+    marks.listIn('file:///a.ts').map(mark => mark.name),
+    ['a']
+  );
+  assert.deepEqual(
+    marks.listIn('file:///b.ts').map(mark => mark.name),
+    ['b']
+  );
 });

@@ -32,6 +32,8 @@ export async function applyActions(
     } else if (action.type === 'notify') {
       // Transient by design: a mistyped Ex command should not cost a click.
       vscode.window.setStatusBarMessage(action.message, 4000);
+    } else if (action.type === 'openFile') {
+      await applyOpenFile(action);
     }
   }
 
@@ -88,6 +90,27 @@ async function applyIndent(
   for (let level = 0; level < action.levels; level++) {
     await vscode.commands.executeCommand(command);
   }
+}
+
+/**
+ * `` `a `` onto a mark in another document.
+ *
+ * The mark holds the document's URI as its identifier, so reopening it is exact
+ * rather than a search by name. The stored position is clamped against the
+ * document as it is *now*: marks do not follow edits, so a mark set before a
+ * deletion can point past the end of what is left.
+ */
+async function applyOpenFile(action: Extract<Action, { type: 'openFile' }>): Promise<void> {
+  const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(action.bufferId));
+  const editor = await vscode.window.showTextDocument(document, { preview: false });
+
+  const buffer = new DocumentBuffer(document);
+  const clamped = clampCursor(buffer, action.position, 'normal');
+  const position = action.toFirstNonBlank ? pos(clamped.line, firstNonBlank(buffer, clamped.line)) : clamped;
+
+  const at = toVsPosition(position);
+  editor.selection = new vscode.Selection(at, at);
+  editor.revealRange(new vscode.Range(at, at), vscode.TextEditorRevealType.InCenterIfOutsideViewport);
 }
 
 /**
