@@ -31,6 +31,15 @@ export type Action =
       readonly levels: number;
     }
   /**
+   * Puts what was yanked or deleted into the system clipboard.
+   *
+   * Emitted only when the register in play is `"+` or `"*`, whether named
+   * explicitly or reached through `vimLike.defaultRegister`. The core cannot write
+   * the clipboard itself — the API is asynchronous, and the engine is not — so it
+   * says what should be there and the adapter puts it there.
+   */
+  | { readonly type: 'setClipboard'; readonly text: string }
+  /**
    * Something to tell the user, such as an Ex command that does not exist. Shown
    * transiently rather than as a dialog: a typo in the command line should not
    * cost a click to dismiss.

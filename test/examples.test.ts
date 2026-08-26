@@ -19,6 +19,7 @@ const source = readFileSync(path.join(ROOT, 'examples', 'settings.jsonc'), 'utf8
 
 interface Settings {
   'vimLike.leader': string;
+  'vimLike.defaultRegister': string;
   'vimLike.exCommands': Record<string, string[]>;
   'vimLike.aiPanels': unknown;
   'vimLike.normalModeKeyBindings': RemapRule[];
@@ -69,6 +70,11 @@ test('テンプレートの leader マッピングが発火する', () => {
   assert.deepEqual(run('abc', ' R', { remaps }).commands, ['vimLike.chooseTerminal']);
   assert.deepEqual(run('abc', ' E', { remaps }).commands, ['vimLike.chooseAIPanel']);
   assert.deepEqual(run('abc', ' n', { remaps }).commands, ['vimLike.toggleFileTree']);
+});
+
+test('テンプレートはヤンク先をクリップボードにしている', () => {
+  // init.vim の set clipboard=unnamed に対応する部分です。
+  assert.equal(settings['vimLike.defaultRegister'], 'clipboard');
 });
 
 test('テンプレートの AI パネルが読み込める', () => {

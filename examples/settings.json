@@ -1,5 +1,6 @@
 {
   "vimLike.leader": " ",
+  "vimLike.defaultRegister": "clipboard",
   "vimLike.exCommands": {
     "gg": ["git-graph.view"]
   },

@@ -34,6 +34,8 @@ export async function applyActions(
       vscode.window.setStatusBarMessage(action.message, 4000);
     } else if (action.type === 'openFile') {
       await applyOpenFile(action);
+    } else if (action.type === 'setClipboard') {
+      await vscode.env.clipboard.writeText(action.text);
     }
   }
 

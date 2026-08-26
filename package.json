@@ -136,6 +136,19 @@
             }
           }
         },
+        "vimLike.defaultRegister": {
+          "type": "string",
+          "enum": [
+            "unnamed",
+            "clipboard"
+          ],
+          "default": "unnamed",
+          "enumDescriptions": [
+            "この拡張機能のレジスタ。Vim の既定と同じで、OS のクリップボードには触りません。",
+            "OS のクリップボード。ヤンクした内容を他のアプリケーションへそのまま貼れます。"
+          ],
+          "markdownDescription": "レジスタを指定しなかったとき (`yy` `dd` `p`) にどこを使うかです。Vim の `clipboard=unnamed` に相当します。\n\n- `unnamed` — この拡張機能のレジスタ。他のアプリケーションには渡りません。\n- `clipboard` — OS のクリップボード。AI パネルや別のアプリへ貼るのが目的ならこちらです。\n\nどちらを選んでも、レジスタを名指しした指定が勝ちます。`\"ayy` はこの拡張機能の `a`、`\"+yy` と `\"*yy` は常にクリップボードです。"
+        },
         "vimLike.aiPanels": {
           "type": "array",
           "default": [],
