@@ -1,3 +1,4 @@
+import { CommandSpec, parseCommandList } from './commands';
 import { DEFAULT_LEADER, normalizeKey, resolveLeader } from './keys';
 import { Mode } from './types';
 
@@ -12,7 +13,15 @@ import { Mode } from './types';
 export interface RemapRule {
   readonly before: readonly string[];
   readonly after?: readonly string[];
-  readonly commands?: readonly string[];
+  /** Bare IDs are written as strings; `{ command, args }` is the long form. */
+  readonly commands?: readonly (string | CommandSpec)[];
+}
+
+/** The same rule once validated: keys normalised, commands in their long form. */
+export interface CompiledRemapRule {
+  readonly before: readonly string[];
+  readonly after?: readonly string[];
+  readonly commands?: readonly CommandSpec[];
 }
 
 /** Rules are shared between Visual and Visual Line, as `vnoremap` is in Vim. */
@@ -29,14 +38,14 @@ export type RemapMatch =
   | { readonly kind: 'none' }
   /** A longer rule starts with these keys, so more input is needed. */
   | { readonly kind: 'prefix' }
-  | { readonly kind: 'exact'; readonly rule: RemapRule };
+  | { readonly kind: 'exact'; readonly rule: CompiledRemapRule };
 
 const NO_MATCH: RemapMatch = { kind: 'none' };
 const PREFIX: RemapMatch = { kind: 'prefix' };
 
 export class RemapTable {
   private constructor(
-    private readonly rules: Readonly<Record<RemapScope, readonly RemapRule[]>>,
+    private readonly rules: Readonly<Record<RemapScope, readonly CompiledRemapRule[]>>,
     /** The resolved leader key, needed to render pending sequences readably. */
     public readonly leader: string
   ) {}
@@ -82,7 +91,7 @@ export class RemapTable {
     const scope = scopeOf(mode);
     if (!scope) return NO_MATCH;
 
-    let exact: RemapRule | undefined;
+    let exact: CompiledRemapRule | undefined;
     let prefixed = false;
 
     for (const rule of this.rules[scope]) {
@@ -113,8 +122,8 @@ function compile(
   setting: string,
   problems: string[],
   leader: string
-): RemapRule[] {
-  const compiled: RemapRule[] = [];
+): CompiledRemapRule[] {
+  const compiled: CompiledRemapRule[] = [];
 
   rules.forEach((rule, index) => {
     const where = `vimLike.${setting}[${index}]`;
@@ -134,7 +143,15 @@ function compile(
     }
 
     if (commands.length > 0) {
-      compiled.push({ before, commands: [...commands] });
+      const parsed = parseCommandList(commands);
+      if (parsed === null) {
+        problems.push(
+          `${where}.commands には VS Code のコマンド ID を並べてください。` +
+            `引数を渡すものは { "command": "...", "args": ... } と書きます。`
+        );
+        return;
+      }
+      compiled.push({ before, commands: parsed });
       return;
     }
 

@@ -1,0 +1,8 @@
+{
+  // このフォルダを開いているあいだだけ `:pi` が使えます。VSIX を作って入れ直す
+  // タスク (.vscode/tasks.json の package & install) を呼びます。タスク名は
+  // 引数で渡します。渡さないとタスクの選択リストが開くだけです。
+  "vimLike.exCommands": {
+    "pi": [{ "command": "workbench.action.tasks.runTask", "args": "package & install" }]
+  }
+}

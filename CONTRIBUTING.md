@@ -16,6 +16,20 @@ VS Code でこのディレクトリを開き `F5` を押すと、拡張機能が
 Development Host が起動します。編集しながら試す場合は別のターミナルで `npm run watch` を
 実行しておいてください。
 
+### `:pi` で VSIX を作って入れ直す
+
+開発ホストではなく普段使いの VS Code で試すときは、VSIX を作り直して入れ直すことになります。
+このリポジトリを開いているあいだは `:pi` のひと打ちで走ります。
+
+[.vscode/tasks.json](.vscode/tasks.json) の `package & install` タスクを、
+[.vscode/settings.json](.vscode/settings.json) の `vimLike.exCommands` から呼んでいます。
+どちらもこのフォルダの中だけの設定なので、他のプロジェクトには持ち出されません。
+入れ直したあとはウィンドウの再読み込みが要ります。
+
+`vimLike.exCommands` を読むのはこの拡張機能自身なので、`:pi` が使えるのは既に入れてある
+ときだけです。最初の1回は `npm run package` と `code --install-extension` を手で打って
+ください。
+
 ## 検査
 
 ```sh

@@ -8,6 +8,16 @@
       "isBackground": true,
       "presentation": { "reveal": "never" },
       "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      // 普段使いの VS Code に入れ直すためのものです。`:pi` から呼んでいます
+      // (.vscode/settings.json)。最新の VSIX を選ぶので、バージョンを上げても
+      // ここは直りません。--force は同じ版を入れ直すときに要ります。
+      "label": "package & install",
+      "type": "shell",
+      "command": "npm run package && code --install-extension \"$(ls -t *.vsix | head -1)\" --force",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
     }
   ]
 }

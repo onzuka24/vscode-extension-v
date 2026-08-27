@@ -26,7 +26,11 @@ export async function applyActions(
 
   for (const action of actions) {
     if (action.type === 'executeCommand') {
-      await vscode.commands.executeCommand(action.command);
+      // Passing an explicit `undefined` is not the same as passing nothing to
+      // every command, so an entry without `args` is invoked as it always was.
+      await (action.args === undefined
+        ? vscode.commands.executeCommand(action.command)
+        : vscode.commands.executeCommand(action.command, action.args));
     } else if (action.type === 'indent') {
       await applyIndent(editor, action);
     } else if (action.type === 'notify') {

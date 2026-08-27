@@ -1,7 +1,9 @@
 import { Action, MarkListing } from '../src/core/actions';
 import { LinesBuffer } from '../src/core/buffer';
+import { CommandSpec } from '../src/core/commands';
 import { clampCursor, firstNonBlank } from '../src/core/cursor';
 import { VimEngine, VimState, createState, describePending } from '../src/core/engine';
+import { compileExCommands } from '../src/core/excommands';
 import { DEFAULT_LEADER } from '../src/core/keys';
 import { RemapConfiguration, RemapTable } from '../src/core/remap';
 import { Mode, Position, Range, pos } from '../src/core/types';
@@ -21,6 +23,8 @@ export interface Session {
   readonly at: string;
   /** VS Code commands the engine asked for, in order. */
   readonly commands: readonly string[];
+  /** The same calls with the argument each was given, where one was configured. */
+  readonly commandCalls: readonly CommandSpec[];
   /** Indent requests the engine made, in order. */
   readonly indents: readonly IndentRequest[];
   /** Messages the engine asked the editor to show, in order. */
@@ -59,6 +63,8 @@ export interface RunOptions {
   readonly eol?: string;
   readonly mode?: Mode;
   readonly remaps?: RemapConfiguration;
+  /** `vimLike.exCommands` as written in settings, so `:` can reach it. */
+  readonly exCommands?: Readonly<Record<string, unknown>>;
 }
 
 interface Editor {
@@ -68,6 +74,7 @@ interface Editor {
   anchor: Position | null;
   state: VimState;
   commands: string[];
+  commandCalls: CommandSpec[];
   indents: IndentRequest[];
   messages: string[];
   clipboardWrites: string[];
@@ -85,6 +92,11 @@ export function run(initial: string, keys: string, options: RunOptions = {}): Se
     engine.setRemaps(table);
     leader = table.leader;
   }
+  if (options.exCommands) {
+    const { table, problems } = compileExCommands(options.exCommands);
+    if (problems.length > 0) throw new Error(`invalid exCommands in test: ${problems.join(' / ')}`);
+    engine.setExCommands(table);
+  }
 
   const cursor = options.cursor ?? pos(0, 0);
   const editor: Editor = {
@@ -94,6 +106,7 @@ export function run(initial: string, keys: string, options: RunOptions = {}): Se
     anchor: null,
     state: createState(options.mode ?? 'normal', cursor),
     commands: [],
+    commandCalls: [],
     indents: [],
     messages: [],
     clipboardWrites: [],
@@ -110,6 +123,7 @@ export function run(initial: string, keys: string, options: RunOptions = {}): Se
     mode: editor.state.mode,
     at: `${editor.cursor.line}:${editor.cursor.character}`,
     commands: editor.commands,
+    commandCalls: editor.commandCalls,
     indents: editor.indents,
     messages: editor.messages,
     clipboardWrites: editor.clipboardWrites,
@@ -162,7 +176,11 @@ function tokenize(keys: string): string[] {
 function apply(editor: Editor, result: { state: VimState; actions: readonly Action[] }): void {
   for (const action of result.actions) {
     if (action.type === 'edit') replaceRange(editor, action.range, action.text);
-    else if (action.type === 'executeCommand') editor.commands.push(action.command);
+    else if (action.type === 'executeCommand') {
+      editor.commands.push(action.command);
+      const { command, args } = action;
+      editor.commandCalls.push(args === undefined ? { command } : { command, args });
+    }
     else if (action.type === 'indent') {
       const { startLine, endLine, direction, levels } = action;
       editor.indents.push({ startLine, endLine, direction, levels });

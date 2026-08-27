@@ -552,7 +552,7 @@ function loadRemaps(): void {
   engine.setRemaps(table);
   leader = table.leader;
 
-  const ex = compileExCommands(settings.get<Record<string, string[]>>('exCommands', {}));
+  const ex = compileExCommands(settings.get<Record<string, unknown>>('exCommands', {}));
   engine.setExCommands(ex.table);
   problems.push(...ex.problems);
 

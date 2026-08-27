@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { RemapTable } from '../src/core/remap';
+import { RemapConfiguration, RemapTable } from '../src/core/remap';
 import { pos } from '../src/core/types';
 import { run } from './harness';
 
@@ -47,6 +47,37 @@ test('commands 指定で VS Code のコマンドを直接呼べる', () => {
   const session = run('abc', 'gn', { remaps });
   assert.deepEqual(session.commands, ['workbench.view.explorer']);
   assert.equal(session.text, 'abc');
+});
+
+test('commands 指定でも引数を渡せる', () => {
+  // `:` の追加名と同じ書き方が使えます (#63)。タスク名のような引数を渡せないと、
+  // 引数ありきの VS Code のコマンドにはキーからも届きません。
+  const remaps = {
+    normal: [
+      {
+        before: ['g', 'p'],
+        commands: [{ command: 'workbench.action.tasks.runTask', args: 'package & install' }]
+      }
+    ]
+  };
+  const session = run('abc', 'gp', { remaps });
+
+  assert.deepEqual(session.commandCalls, [
+    { command: 'workbench.action.tasks.runTask', args: 'package & install' }
+  ]);
+});
+
+test('commands の形が壊れていれば捨てられ、理由が報告される', () => {
+  const { table, problems } = RemapTable.from({
+    normal: [
+      { before: ['g', 'p'], commands: [{ args: 'package & install' }] },
+      { before: ['g', 'n'], commands: ['workbench.view.explorer'] }
+    ]
+  } as RemapConfiguration);
+
+  assert.equal(problems.length, 1);
+  assert.match(problems[0] ?? '', /コマンド ID/);
+  assert.equal(table.match(['g', 'n'], 'normal').kind, 'exact', '正しい規則だけが残る');
 });
 
 test('展開結果は再度リマップされない', () => {

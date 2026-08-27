@@ -6,7 +6,8 @@
 vscode-extension-v/
 ├── .vscode/
 │   ├── launch.json          F5 で Extension Development Host を起動する設定
-│   └── tasks.json           起動前に走るビルドタスク（npm run watch）
+│   ├── settings.json        このリポジトリだけの設定（`:pi` で VSIX を作って入れ直す）
+│   └── tasks.json           起動前に走るビルドタスクと、VSIX を作って入れ直すタスク
 │
 ├── src/
 │   ├── core/                ★ vscode を import しない層。ロジックはすべてここ
@@ -24,6 +25,7 @@ vscode-extension-v/
 │   │   ├── remap.ts           ユーザー定義のキー置き換えの表と照合
 │   │   ├── parser.ts          キー列 → コマンドオブジェクト
 │   │   ├── excommands.ts      `:` で受け付ける Ex コマンドの表
+│   │   ├── commands.ts        設定に書かれた VS Code コマンド（ID と引数）の読み取り
 │   │   ├── search.ts          パターンの照合と、次の一致の探索
 │   │   ├── actions.ts         エンジンが返す副作用の記述（データ）
 │   │   └── engine.ts          上記を束ねる。キーを受けて Action を返す
@@ -395,6 +397,19 @@ Ex の引数を開かれたものにしている要素がひとつも入りま�
 引数が解釈できないときは `E475: Invalid argument` を、引数がないときは Vim と同じ
 `E471: Argument required` を返します。コマンド自体は存在するので、`E492`（そんなコマンドはない）
 とは区別しています。
+
+### 設定に書く引数は、Ex の行の引数ではない
+
+`vimLike.exCommands` には `{ "command": ..., "args": ... }` と書けて、VS Code のコマンドへ
+引数が渡ります（#63）。上の「引数を解釈しない表」と矛盾しているように見えますが、別のものです。
+渡す値は設定に固定で書いてあるもので、打った行から読み取ってはいません。行の解釈を増やさずに、
+`workbench.action.tasks.runTask` のように引数がないと選択リストしか出せないコマンドへ届く
+ようにしたものです。
+
+読み取りは [commands.ts](../src/core/commands.ts) にあります。`vimLike.exCommands` と
+キー割り当ての `commands` の両方が同じ形を受け付けるのは、どちらも「VS Code のコマンドの並び」
+という同じものを書く場所だからです。片方だけが長い書き方を知っている状態は、書く側からは
+理由のない使い分けにしか見えません。
 
 ## パーサ — Vim の文法をそのまま state machine に
 

@@ -20,7 +20,7 @@ const source = readFileSync(path.join(ROOT, 'examples', 'settings.jsonc'), 'utf8
 interface Settings {
   'vimLike.leader': string;
   'vimLike.defaultRegister': string;
-  'vimLike.exCommands': Record<string, string[]>;
+  'vimLike.exCommands': Record<string, unknown>;
   'vimLike.aiPanels': unknown;
   'vimLike.normalModeKeyBindings': RemapRule[];
   'vimLike.visualModeKeyBindings': RemapRule[];
@@ -88,7 +88,10 @@ test('テンプレートの AI パネルが読み込める', () => {
 test('テンプレートの Ex コマンドが読み込める', () => {
   const { table, problems } = compileExCommands(settings['vimLike.exCommands']);
   assert.deepEqual(problems, []);
-  assert.deepEqual(parseExCommand('gg', table), { kind: 'commands', commands: ['git-graph.view'] });
+  assert.deepEqual(parseExCommand('gg', table), {
+    kind: 'commands',
+    commands: [{ command: 'git-graph.view' }]
+  });
 });
 
 test('テンプレートの Visual モード側も効く', () => {
