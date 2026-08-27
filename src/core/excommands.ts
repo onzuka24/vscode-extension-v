@@ -19,9 +19,11 @@
  * would have to grow with every user's favourite.
  */
 
+import { CommandSpec, parseCommandList, toCommandSpecs } from './commands';
+
 export type ExCommand =
   /** VS Code commands to run, in order. */
-  | { readonly kind: 'commands'; readonly commands: readonly string[] }
+  | { readonly kind: 'commands'; readonly commands: readonly CommandSpec[] }
   /** `:42` and `:$`. One-based, as written; the caller clamps to the buffer. */
   | { readonly kind: 'goto'; readonly line: number | 'last' }
   /** `:marks` — list what is set, and offer to jump to one. */
@@ -95,7 +97,7 @@ const COMMANDS: Readonly<Record<string, readonly string[]>> = {
 };
 
 /** User-defined `:` names, each mapping to the VS Code commands it runs. */
-export type ExCommandTable = Readonly<Record<string, readonly string[]>>;
+export type ExCommandTable = Readonly<Record<string, readonly CommandSpec[]>>;
 
 /** Names the built-in table already owns, which a user entry may not shadow. */
 const RESERVED: ReadonlySet<string> = new Set([...Object.keys(COMMANDS), 'marks', 'delmarks', 'delm']);
@@ -111,7 +113,7 @@ export function compileExCommands(config: Readonly<Record<string, unknown>>): {
   table: ExCommandTable;
   problems: string[];
 } {
-  const table: Record<string, readonly string[]> = {};
+  const table: Record<string, readonly CommandSpec[]> = {};
   const problems: string[] = [];
 
   for (const [name, value] of Object.entries(config)) {
@@ -126,24 +128,19 @@ export function compileExCommands(config: Readonly<Record<string, unknown>>): {
       problems.push(`${where}: この名前は既に使われています。別の名前にしてください。`);
       continue;
     }
-    if (!isCommandList(value)) {
-      problems.push(`${where}: 実行する VS Code のコマンド ID を1つ以上並べてください。`);
+    const commands = parseCommandList(value);
+    if (commands === null) {
+      problems.push(
+        `${where}: 実行する VS Code のコマンド ID を1つ以上並べてください。` +
+          `引数を渡すものは { "command": "...", "args": ... } と書きます。`
+      );
       continue;
     }
 
-    table[name] = [...value];
+    table[name] = commands;
   }
 
   return { table, problems };
-}
-
-/** The value comes straight from settings.json, so nothing about it is assumed. */
-function isCommandList(value: unknown): value is readonly string[] {
-  return (
-    Array.isArray(value) &&
-    value.length > 0 &&
-    value.every((item: unknown) => typeof item === 'string' && item !== '')
-  );
 }
 
 export function parseExCommand(input: string, custom: ExCommandTable = {}): ExCommand {
@@ -161,7 +158,7 @@ export function parseExCommand(input: string, custom: ExCommandTable = {}): ExCo
   if (deleteMarks) return parseDeleteMarks(deleteMarks[1] === '!', (deleteMarks[2] ?? '').trim());
 
   const commands = COMMANDS[text];
-  if (commands) return { kind: 'commands', commands };
+  if (commands) return { kind: 'commands', commands: toCommandSpecs(commands) };
 
   const userCommands = custom[text];
   if (userCommands) return { kind: 'commands', commands: userCommands };

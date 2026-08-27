@@ -224,7 +224,9 @@ export class VimEngine {
       if (rule.commands) {
         return {
           state: cleared,
-          actions: rule.commands.map(command => ({ type: 'executeCommand', command }) as const),
+          actions: rule.commands.map(
+            ({ command, args }) => ({ type: 'executeCommand', command, args }) as const
+          ),
           handled: true
         };
       }
@@ -423,7 +425,7 @@ export class VimEngine {
 
     switch (parsed.kind) {
       case 'commands':
-        for (const command of parsed.commands) actions.push({ type: 'executeCommand', command });
+        for (const { command, args } of parsed.commands) actions.push({ type: 'executeCommand', command, args });
         break;
 
       case 'goto': {

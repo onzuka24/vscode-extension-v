@@ -128,11 +128,32 @@
         "vimLike.exCommands": {
           "type": "object",
           "default": {},
-          "markdownDescription": "`:` で使える名前を足します。値は実行する VS Code のコマンド ID の並びです。\n\n```json\n{\n  \"gg\": [\"git-graph.view\"],\n  \"blame\": [\"gitlens.toggleFileBlame\"]\n}\n```\n\n他の拡張機能のコマンドはここに書きます。`:w` などの組み込みの名前は上書きできません (取り違えると保存できなくなるため)。",
+          "markdownDescription": "`:` で使える名前を足します。値は実行する VS Code のコマンド ID の並びです。\n\n```json\n{\n  \"gg\": [\"git-graph.view\"],\n  \"blame\": [\"gitlens.toggleFileBlame\"]\n}\n```\n\n引数を取るコマンドは `{ \"command\": ..., \"args\": ... }` と書きます。`args` はそのまま渡すので、値の形はコマンド側の決まりに従ってください。\n\n```json\n{\n  \"pi\": [{ \"command\": \"workbench.action.tasks.runTask\", \"args\": \"package & install\" }]\n}\n```\n\n他の拡張機能のコマンドはここに書きます。`:w` などの組み込みの名前は上書きできません (取り違えると保存できなくなるため)。",
           "additionalProperties": {
             "type": "array",
             "items": {
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string",
+                  "description": "実行する VS Code のコマンド ID。"
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "command"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "command": {
+                      "type": "string",
+                      "description": "実行する VS Code のコマンド ID。"
+                    },
+                    "args": {
+                      "description": "コマンドに渡す引数。1つの値として渡します。複数渡したいコマンドはオブジェクトを取ります。"
+                    }
+                  }
+                }
+              ]
             }
           }
         },
@@ -175,7 +196,7 @@
         "vimLike.normalModeKeyBindings": {
           "type": "array",
           "default": [],
-          "markdownDescription": "Normal モードのキー割り当てを置き換えます (`nnoremap` 相当)。置き換えた結果はさらに置き換えられません。\n\n```json\n[\n  { \"before\": [\"H\"], \"after\": [\"^\"] },\n  { \"before\": [\"J\"], \"after\": [\"1\", \"0\", \"j\"] },\n  { \"before\": [\"U\"], \"after\": [\"<C-r>\"] },\n  { \"before\": [\"<leader>\", \"s\"], \"after\": [\":\", \"w\", \"<CR>\"] },\n  { \"before\": [\"g\", \"n\"], \"commands\": [\"workbench.view.explorer\"] }\n]\n```",
+          "markdownDescription": "Normal モードのキー割り当てを置き換えます (`nnoremap` 相当)。置き換えた結果はさらに置き換えられません。\n\n```json\n[\n  { \"before\": [\"H\"], \"after\": [\"^\"] },\n  { \"before\": [\"J\"], \"after\": [\"1\", \"0\", \"j\"] },\n  { \"before\": [\"U\"], \"after\": [\"<C-r>\"] },\n  { \"before\": [\"<leader>\", \"s\"], \"after\": [\":\", \"w\", \"<CR>\"] },\n  { \"before\": [\"g\", \"n\"], \"commands\": [\"workbench.view.explorer\"] },\n  { \"before\": [\"g\", \"p\"], \"commands\": [{ \"command\": \"workbench.action.tasks.runTask\", \"args\": \"watch\" }] }\n]\n```",
           "items": {
             "type": "object",
             "required": [
@@ -200,9 +221,28 @@
               "commands": {
                 "type": "array",
                 "items": {
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "command"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "command": {
+                          "type": "string"
+                        },
+                        "args": {
+                          "description": "コマンドに渡す引数。1つの値として渡します。"
+                        }
+                      }
+                    }
+                  ]
                 },
-                "description": "実行する VS Code のコマンド ID。after か commands のどちらか一方を指定します。"
+                "markdownDescription": "実行する VS Code のコマンド ID。after か commands のどちらか一方を指定します。引数を取るコマンドは `{ \"command\": ..., \"args\": ... }` と書きます。"
               }
             }
           }
@@ -233,7 +273,24 @@
               "commands": {
                 "type": "array",
                 "items": {
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "command"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "command": {
+                          "type": "string"
+                        },
+                        "args": {}
+                      }
+                    }
+                  ]
                 }
               }
             }

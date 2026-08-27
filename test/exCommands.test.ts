@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { compileExCommands, parseExCommand } from '../src/core/excommands';
+import { run } from './harness';
 
 /**
  * `:` で使える名前をユーザーが足せるようにしたものです。他の拡張機能のコマンドを
@@ -11,14 +12,17 @@ import { compileExCommands, parseExCommand } from '../src/core/excommands';
 test('設定した名前が Ex コマンドになる', () => {
   const { table, problems } = compileExCommands({ gg: ['git-graph.view'] });
   assert.deepEqual(problems, []);
-  assert.deepEqual(parseExCommand('gg', table), { kind: 'commands', commands: ['git-graph.view'] });
+  assert.deepEqual(parseExCommand('gg', table), {
+    kind: 'commands',
+    commands: [{ command: 'git-graph.view' }]
+  });
 });
 
 test('複数のコマンドを順に実行できる', () => {
   const { table } = compileExCommands({ review: ['workbench.view.scm', 'git-graph.view'] });
   assert.deepEqual(parseExCommand('review', table), {
     kind: 'commands',
-    commands: ['workbench.view.scm', 'git-graph.view']
+    commands: [{ command: 'workbench.view.scm' }, { command: 'git-graph.view' }]
   });
 });
 
@@ -33,7 +37,7 @@ test('組み込みの名前は上書きできない', () => {
   assert.match(problems[0] ?? '', /既に使われています/);
   assert.deepEqual(parseExCommand('w', table), {
     kind: 'commands',
-    commands: ['workbench.action.files.save']
+    commands: [{ command: 'workbench.action.files.save' }]
   });
 });
 
@@ -77,4 +81,85 @@ test('行番号やマーク系の解釈より後に見る', () => {
   const { table } = compileExCommands({ gg: ['git-graph.view'] });
   assert.deepEqual(parseExCommand('42', table), { kind: 'goto', line: 42 });
   assert.deepEqual(parseExCommand('$', table), { kind: 'goto', line: 'last' });
+});
+
+/**
+ * 引数を渡す書き方 (#63)。VS Code のコマンドには、引数がないと何もできないものが
+ * あります。workbench.action.tasks.runTask はタスク名を渡さないと選択リストが開き、
+ * workbench.action.terminal.sendSequence は何も送りません。コマンド ID だけしか
+ * 書けないうちは、これらに `:` から届きませんでした。
+ */
+
+test('引数付きの書き方ができる', () => {
+  const { table, problems } = compileExCommands({
+    pi: [{ command: 'workbench.action.tasks.runTask', args: 'package & install' }]
+  });
+
+  assert.deepEqual(problems, []);
+  assert.deepEqual(parseExCommand('pi', table), {
+    kind: 'commands',
+    commands: [{ command: 'workbench.action.tasks.runTask', args: 'package & install' }]
+  });
+});
+
+test('引数の中身は解釈せずそのまま渡す', () => {
+  // 何を受け取れるかはコマンド側の都合なので、こちらは形を問わない。
+  const args = { text: 'npm test', when: { count: 3, deep: [null, true] } };
+  const { table, problems } = compileExCommands({ t: [{ command: 'some.command', args }] });
+
+  assert.deepEqual(problems, []);
+  assert.deepEqual(parseExCommand('t', table), {
+    kind: 'commands',
+    commands: [{ command: 'some.command', args }]
+  });
+});
+
+test('コマンド ID だけの書き方と混ぜられる', () => {
+  const { table, problems } = compileExCommands({
+    dev: ['workbench.view.scm', { command: 'workbench.action.tasks.runTask', args: 'watch' }]
+  });
+
+  assert.deepEqual(problems, []);
+  assert.deepEqual(parseExCommand('dev', table), {
+    kind: 'commands',
+    commands: [{ command: 'workbench.view.scm' }, { command: 'workbench.action.tasks.runTask', args: 'watch' }]
+  });
+});
+
+test('args を書かなければ引数なしのまま', () => {
+  // undefined を渡すのと渡さないのはコマンドによって違うので、キーごと持たない。
+  const { table } = compileExCommands({ gg: [{ command: 'git-graph.view' }] });
+  const parsed = parseExCommand('gg', table);
+
+  assert.equal(parsed.kind, 'commands');
+  assert.ok(parsed.kind === 'commands' && !('args' in parsed.commands[0]!));
+});
+
+test('コマンドの形が壊れていれば断る', () => {
+  const broken = [
+    [{ args: 'package & install' }],
+    [{ command: '' }],
+    [{ command: 42 }],
+    [['workbench.view.scm']],
+    [null],
+    'workbench.view.scm'
+  ];
+
+  for (const commands of broken) {
+    const { table, problems } = compileExCommands({ gg: commands });
+    assert.equal(problems.length, 1, JSON.stringify(commands));
+    assert.match(problems[0] ?? '', /コマンド ID/);
+    assert.equal(Object.keys(table).length, 0, JSON.stringify(commands));
+  }
+});
+
+test(':pi と打つと引数付きでコマンドが呼ばれる', () => {
+  const session = run('abc', ':pi<CR>', {
+    exCommands: { pi: [{ command: 'workbench.action.tasks.runTask', args: 'package & install' }] }
+  });
+
+  assert.deepEqual(session.commandCalls, [
+    { command: 'workbench.action.tasks.runTask', args: 'package & install' }
+  ]);
+  assert.equal(session.mode, 'normal', 'コマンドラインは閉じる');
 });

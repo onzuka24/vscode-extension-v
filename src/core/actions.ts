@@ -16,7 +16,8 @@ export type Action =
   | { readonly type: 'setCursor'; readonly position: Position; readonly toFirstNonBlank: boolean }
   | { readonly type: 'setSelection'; readonly anchor: Position; readonly active: Position; readonly linewise: boolean }
   | { readonly type: 'setMode'; readonly mode: Mode }
-  | { readonly type: 'executeCommand'; readonly command: string }
+  /** `args` is what the settings wrote for it, if anything; see `commands.ts`. */
+  | { readonly type: 'executeCommand'; readonly command: string; readonly args?: unknown }
   /**
    * `>` and `<`. The width of one step, tabs versus spaces and the per-language
    * settings all belong to the editor, so the core states only which lines move
