@@ -120,7 +120,35 @@
   // 打鍵で、呼ぶコマンドも同じです。同じコマンドを通すのが大事で、拡張機能は
   // サイドバーが開いているかを VS Code に問い合わせられないため、自分が開閉した
   // 記録を頼りにしています。ここで closeSidebar を直接呼ぶとその記録がずれます。
-  { "key": "space n", "command": "vimLike.toggleFileTree", "when": "filesExplorerFocus && !inputFocus" }
+  { "key": "space n", "command": "vimLike.toggleFileTree", "when": "filesExplorerFocus && !inputFocus" },
+
+  // ==========================================================================
+  // 4. 別のウインドウへ移る
+  // ==========================================================================
+  // VS Code のウインドウを複数開いているときに、選択リストから移ります。
+  // 番号で名指しできないのは、拡張機能の API にウインドウを前に出す手段が
+  // ないためです (issue #66)。エディターの中からも外からも打てます。
+  //
+  // macOS では ctrl+0 は既定で「グループ内の最後のタブを開く」
+  // (workbench.action.lastEditorInGroup) です。ここで上書きします。
+  // Windows / Linux での既定はサイドバーへのフォーカス移動なので、
+  // そちらと入れ替わります。
+  //
+  // ターミナルの中では効きません。switchWindow は VS Code の
+  // terminal.integrated.commandsToSkipShell の既定一覧に入っていないため、
+  // キーがシェルへ送られます。ターミナルからも飛びたい場合は settings.json に
+  // "terminal.integrated.commandsToSkipShell": ["workbench.action.switchWindow"]
+  // を足してください。
+  { "key": "ctrl+0", "command": "workbench.action.switchWindow" },
+
+  // 選択リストの中の上下です。j / k が使えないのは、絞り込みの入力欄が常に
+  // フォーカスを持っていて、文字として入ってしまうためです。既定でも
+  // ctrl+n / ctrl+p が同じことをするので、要らなければ削ってください。
+  //
+  // inQuickOpen が付いているので、効くのは選択リストが出ているあいだだけです。
+  // ウインドウの一覧に限らず、コマンドパレットやファイル検索でも同じように動きます。
+  { "key": "ctrl+j", "command": "workbench.action.quickOpenSelectNext", "when": "inQuickOpen" },
+  { "key": "ctrl+k", "command": "workbench.action.quickOpenSelectPrevious", "when": "inQuickOpen" }
 ]
 
 // ============================================================================

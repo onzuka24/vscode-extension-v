@@ -196,9 +196,20 @@ test('キーバインド例はすべて VS Code が解釈できるキーを使�
   }
 });
 
-test('キーバインド例はどれも適用範囲を絞っている', () => {
-  // when のないキーバインドは VS Code 全体で効いてしまいます。
+/**
+ * ctrl / alt / cmd を伴うキーは、文字として打たれることがありません。`shift+g` は
+ * G という1文字なので、ここには入れていません。
+ */
+const CHORD = /(^|\s)(ctrl|alt|cmd|meta|win)\+/;
+
+test('修飾キーのないキーバインド例は適用範囲を絞っている', () => {
+  // when のないキーバインドは VS Code 全体で効いてしまいます。文字として打たれうる
+  // キーでそれをやると、どこかで入力を奪います。
+  //
+  // 修飾キー付きのものは対象外です。ctrl+0 (ウインドウの切り替え) は、どこにいても
+  // 打てることが目的なので、絞ると用をなしません。
   for (const binding of keybindings) {
+    if (CHORD.test(binding.key)) continue;
     assert.ok(binding.when !== undefined && binding.when !== '', `${binding.key} に when がありません`);
   }
 });
@@ -241,11 +252,18 @@ test('同じキーを複数に割り当てる場合は条件が重ならない',
  * 動くので、「開いているときだけ効かない」という分かりにくい形で出ます。
  *
  * フォーカスを表す条件はいずれもこの語のどれかを含みます。
+ *
+ * `inQuickOpen` だけは「見えているか」でありながら例外です。選択リストは出ている
+ * あいだキーボードを丸ごと占有するので、別の場所で打っている最中に真になることが
+ * ありません。
  */
-const FOCUS_CONDITION = /focusedView|activeWebviewPanelId|Focus\b/;
+const FOCUS_CONDITION = /focusedView|activeWebviewPanelId|Focus\b|inQuickOpen/;
 
 test('キーバインドは、見えているかではなくフォーカスで絞る', () => {
   for (const binding of keybindings) {
+    // 絞っていないものは上のテストの担当です (修飾キー付きに限って許しています)。
+    if (binding.when === undefined) continue;
+
     // OR で並ぶ条件はどれか1つが成立すれば発火するので、すべてを個別に見ます。
     for (const alternative of (binding.when ?? '').split('||')) {
       assert.match(
