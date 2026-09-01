@@ -104,6 +104,23 @@
     "when": "!editorTextFocus && activeWebviewPanelId"
   },
 
+  // 同じ2つを ctrl+escape でも受け付けます。条件も呼ぶコマンドも上と同じで、
+  // 押しやすいほうで戻れるようにするためだけのものです。
+  //
+  // macOS では ctrl+escape は空いています (VS Code の既定にも OS にもありません)。
+  // Windows では OS がスタートメニューに使うキーなので、VS Code まで届かない
+  // 可能性があります。Linux でもデスクトップ環境が取っていることがあります。
+  {
+    "key": "ctrl+escape",
+    "command": "workbench.action.focusActiveEditorGroup",
+    "when": "!editorTextFocus && !activeWebviewPanelId"
+  },
+  {
+    "key": "ctrl+escape",
+    "command": "workbench.action.closeActiveEditor",
+    "when": "!editorTextFocus && activeWebviewPanelId"
+  },
+
   // ---- ここから下は上の2行と重なる、別の戻り方です ------------------------
   // ctrl+; ひとつに絞りたい場合は、この3行を削ってください。動作は覆われています。
   // 残す価値があるのは、修飾キーなしで押せる (space l) 点と、閉じてから戻れる
@@ -173,7 +190,9 @@
 // ============================================================================
 //
 // ctrl+; は macOS のシステムショートカットとしては空いています (入力ソース切替が
-// 占有している ctrl+space 系を避けて選びました)。
+// 占有している ctrl+space 系を避けて選びました)。同じ働きの ctrl+escape も
+// macOS では空いていますが、Windows は OS がスタートメニューに使うので、
+// そちらでは ctrl+; だけが頼りになります。
 //
 // 他の環境へ持っていくときは、VS Code の「キーボード ショートカット」画面で
 // そのキーを検索し、既存の割り当てと衝突していないか確かめてください。
