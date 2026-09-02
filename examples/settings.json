@@ -31,6 +31,8 @@
     { "before": ["<leader>", "w", "w"], "commands": ["workbench.action.evenEditorWidths"] },
     { "before": ["<leader>", "s"], "commands": ["workbench.action.files.save"] },
     { "before": ["<leader>", "n"], "commands": ["vimLike.toggleFileTree"] },
+    { "before": ["<leader>", "m"], "commands": ["workbench.action.togglePanel", "workbench.action.focusActiveEditorGroup"] },
+    { "before": ["<leader>", "."], "commands": ["workbench.action.toggleAuxiliaryBar"] },
     { "before": ["<leader>", "t"], "commands": ["vimLike.openTerminalOutput"] },
     { "before": ["<leader>", "r"], "commands": ["vimLike.sendToTerminal"] },
     { "before": ["<leader>", "R"], "commands": ["vimLike.chooseTerminal"] },

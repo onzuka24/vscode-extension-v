@@ -107,6 +107,23 @@
     // ツリーの中から同じ打鍵で閉じるには、examples/keybindings.jsonc の
     // "space n" も入れてください。同じコマンドを呼ぶので状態がずれません。
     { "before": ["<leader>", "n"], "commands": ["vimLike.toggleFileTree"] },
+    // init.vim には無いものです。下のパネル (ターミナル・問題・出力) と、右の
+    // セカンダリサイドバーの開閉です。VS Code の既定は cmd+J と cmd+option+B
+    // ですが、Normal モードから修飾キーなしで開け閉めできます。
+    //
+    // 呼んでいるのはキーではなくコマンドなので、Windows / Linux でもそのままです
+    // (既定のキーは ctrl+J と ctrl+alt+B に変わりますが、こちらは影響を受けません)。
+    //
+    // AI パネルの開閉に使う場合は、出している場所に合わせてください。下に出して
+    // いるなら <leader>m、セカンダリサイドバーなら <leader>. です。
+    //
+    // <leader>m がコマンドを2つ呼ぶのは、パネルを開くと VS Code がそこへ
+    // フォーカスを移すからです。ターミナルが出ている状態で開くと、打鍵が
+    // シェルへ行ってしまいます。開いたあとにエディターへ戻すことで、出しただけの
+    // 状態にしています。閉じるときは元からエディターにいるので何も起きません。
+    // (フォーカスを移さずに開く設定は VS Code にありません。)
+    { "before": ["<leader>", "m"], "commands": ["workbench.action.togglePanel", "workbench.action.focusActiveEditorGroup"] },
+    { "before": ["<leader>", "."], "commands": ["workbench.action.toggleAuxiliaryBar"] },
     // nnoremap <leader>t :Term<enter>
     // ターミナルそのものではなく、ターミナル用の作業バッファを開きます。
     // 出力がここに追記され、書いた行を <leader>r で送れます。文書なので
