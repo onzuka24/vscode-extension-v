@@ -133,3 +133,70 @@ test('検索はバッファを変えない', () => {
   assert.equal(run(TEXT, '/foo<CR>').text, TEXT);
   assert.equal(run(TEXT, '*').text, TEXT);
 });
+
+// ---------------------------------------------------------------------------
+// 打ち切りながら探す作りの、境目にあたるところ (issue #70)
+// ---------------------------------------------------------------------------
+
+/**
+ * 検索は「文書中の一致を全部集めて添字を引く」形から「必要なところで止める」形へ
+ * 変えました。10万行で `n` 1打鍵が 6.3ms かかっていたためです。ここで確かめるのは
+ * 速さではなく、打ち切りが**答えを変えていない**ことです。
+ */
+
+const THREE = 'x aa\nbb aa\ncc aa';
+
+test('一致の数よりカウントが大きければ、回り込んで数え直す', () => {
+  // ここだけは早く止まれません。全体の数が分からないと余りが出せないためです。
+  // 一致は3つなので、4個目は1個目と同じ場所になります。
+  assert.equal(run(THREE, '/aa<CR>').at, '0:2', '1個目');
+  assert.equal(run(THREE, '4/aa<CR>').at, '0:2', '4個目は1個目に戻る');
+  assert.equal(run(THREE, '5/aa<CR>').at, '1:3', '5個目は2個目');
+  assert.equal(run(THREE, '7/aa<CR>').at, '0:2', '7個目も1個目');
+
+  // ちょうど倍数のとき、余りは 0 ではなく「最後の1つ」でなければなりません。
+  // 素朴に `count % 一致数` と書くとここだけ 0 になり、行き先を見失います。
+  assert.equal(run(THREE, '6/aa<CR>').at, '2:3', '6個目は3個目');
+  assert.equal(run(THREE, '9/aa<CR>').at, '2:3', '9個目も3個目');
+});
+
+test('後方検索も回り込み、カウントを取る', () => {
+  assert.equal(run(THREE, '?aa<CR>', { cursor: pos(2, 3) }).at, '1:3');
+  assert.equal(run(THREE, '2?aa<CR>', { cursor: pos(2, 3) }).at, '0:2');
+  assert.equal(run(THREE, '3?aa<CR>', { cursor: pos(2, 3) }).at, '2:3', '回り込んで自分自身へ');
+  assert.equal(run(THREE, '4?aa<CR>', { cursor: pos(2, 3) }).at, '1:3');
+  assert.equal(run(THREE, '6?aa<CR>', { cursor: pos(2, 3) }).at, '2:3', '後方でもちょうど倍数');
+});
+
+test('カーソル位置ちょうどの一致は、前方でも後方でも飛ばす', () => {
+  // 動かない検索は「見つからない」と区別がつかないので、必ず1つ進みます。
+  assert.equal(run(THREE, '/aa<CR>', { cursor: pos(0, 2) }).at, '1:3', '前方は次へ');
+  assert.equal(run(THREE, '?aa<CR>', { cursor: pos(1, 3) }).at, '0:2', '後方は前へ');
+});
+
+test('同じ行に複数あるときも順に拾う', () => {
+  const line = 'aa bb aa bb aa';
+  assert.equal(run(line, '/aa<CR>').at, '0:6');
+  assert.equal(run(line, '2/aa<CR>').at, '0:12');
+  assert.equal(run(line, '3/aa<CR>').at, '0:0', '回り込む');
+  assert.equal(run(line, '?aa<CR>', { cursor: pos(0, 12) }).at, '0:6');
+});
+
+test('1行しかない文書でも回り込む', () => {
+  assert.equal(run('aXbXc', '/X<CR>').at, '0:1');
+  assert.equal(run('aXbXc', '2/X<CR>').at, '0:3');
+  assert.equal(run('aXbXc', '3/X<CR>').at, '0:1', '2つしかないので1つ目へ');
+});
+
+test('空文字列に一致しうるパターンでも止まらなくならない', () => {
+  // `x*` はどこにでも一致します。進めない限り無限に回ってしまう形です。
+  const session = run('axxb', '/x*<CR>');
+  assert.equal(session.text, 'axxb');
+  assert.equal(session.mode, 'normal');
+});
+
+test('一致が1つもなければ、回り込まずに知らせる', () => {
+  const session = run(THREE, '/zzz<CR>');
+  assert.equal(session.at, '0:0', '動かない');
+  assert.match(session.messages.at(-1) ?? '', /^E486/);
+});
