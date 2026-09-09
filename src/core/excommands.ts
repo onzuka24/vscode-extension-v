@@ -83,6 +83,10 @@ const COMMANDS: Readonly<Record<string, readonly string[]>> = {
   wqall: [SAVE_ALL, CLOSE_ALL, REVEAL_IF_EMPTY],
   xa: [SAVE_ALL, CLOSE_ALL, REVEAL_IF_EMPTY],
   xall: [SAVE_ALL, CLOSE_ALL, REVEAL_IF_EMPTY],
+  // `:h` opens the README as a document, which is what Vim's help is: a buffer
+  // you move around with Vim's own keys.
+  h: ['vimLike.showHelp'],
+  help: ['vimLike.showHelp'],
   sp: ['workbench.action.splitEditorDown'],
   split: ['workbench.action.splitEditorDown'],
   vs: ['workbench.action.splitEditor'],

@@ -163,3 +163,14 @@ test(':pi と打つと引数付きでコマンドが呼ばれる', () => {
   ]);
   assert.equal(session.mode, 'normal', 'コマンドラインは閉じる');
 });
+
+test('ヘルプの名前も上書きできない', () => {
+  // :h を奪われると、使い方を調べる手段そのものが消えます。
+  const { table, problems } = compileExCommands({ h: ['some.command'], help: ['other.command'] });
+  assert.deepEqual(table, {});
+  assert.equal(problems.length, 2);
+  assert.deepEqual(parseExCommand('h', table), {
+    kind: 'commands',
+    commands: [{ command: 'vimLike.showHelp' }]
+  });
+});
