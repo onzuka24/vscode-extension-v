@@ -17,7 +17,16 @@ export const SPECIAL_KEYS = {
   /** Rubs out the last character of the command line. */
   backspace: '<BS>',
   /** Deletes the character under the cursor, as `x` does. */
-  delete: '<Del>'
+  delete: '<Del>',
+  /**
+   * Tab and Shift+Tab. Neither does anything here, and that is the whole point:
+   * left alone, VS Code indents the line — so Normal mode quietly changed the
+   * file (#50). Vim gives `<Tab>` to the jump list, which this extension does not
+   * keep, and the command line to completion, which it does not offer. Until one
+   * of those exists, being swallowed is the correct behaviour rather than a gap.
+   */
+  tab: '<Tab>',
+  shiftTab: '<S-Tab>'
 } as const;
 
 export type SpecialKey = (typeof SPECIAL_KEYS)[keyof typeof SPECIAL_KEYS];
@@ -42,6 +51,9 @@ const ALIASES: Readonly<Record<string, string>> = {
   backspace: SPECIAL_KEYS.backspace,
   del: SPECIAL_KEYS.delete,
   delete: SPECIAL_KEYS.delete,
+  tab: SPECIAL_KEYS.tab,
+  's-tab': SPECIAL_KEYS.shiftTab,
+  'shift-tab': SPECIAL_KEYS.shiftTab,
   space: SPACE
 };
 

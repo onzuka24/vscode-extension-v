@@ -65,6 +65,14 @@
         "title": "Vim Like: Delete Key"
       },
       {
+        "command": "vimLike.tab",
+        "title": "Vim Like: Tab Key"
+      },
+      {
+        "command": "vimLike.shiftTab",
+        "title": "Vim Like: Shift+Tab Key"
+      },
+      {
         "command": "vimLike.openTerminalOutput",
         "title": "Vim Like: Open Last Terminal Output"
       },
@@ -358,6 +366,16 @@
         "command": "workbench.action.closeActiveEditor",
         "key": "ctrl+w c",
         "when": "vimLike.active && vimLike.mode != insert && editorTextFocus"
+      },
+      {
+        "command": "vimLike.tab",
+        "key": "tab",
+        "when": "vimLike.active && vimLike.mode != insert && editorTextFocus && !suggestWidgetVisible && !parameterHintsVisible && !renameInputVisible && !inSnippetMode && !editorTabMovesFocus && !inlineSuggestionVisible"
+      },
+      {
+        "command": "vimLike.shiftTab",
+        "key": "shift+tab",
+        "when": "vimLike.active && vimLike.mode != insert && editorTextFocus && !suggestWidgetVisible && !parameterHintsVisible && !renameInputVisible && !inSnippetMode && !editorTabMovesFocus && !inlineSuggestionVisible"
       },
       {
         "command": "vimLike.delete",
