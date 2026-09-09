@@ -18,6 +18,7 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const source = readFileSync(path.join(ROOT, 'examples', 'settings.jsonc'), 'utf8');
 
 interface Settings {
+  'explorer.autoReveal': boolean;
   'vimLike.leader': string;
   'vimLike.defaultRegister': string;
   'vimLike.exCommands': Record<string, unknown>;
@@ -70,6 +71,26 @@ test('テンプレートの leader マッピングが発火する', () => {
   assert.deepEqual(run('abc', ' R', { remaps }).commands, ['vimLike.chooseTerminal']);
   assert.deepEqual(run('abc', ' E', { remaps }).commands, ['vimLike.chooseAIPanel']);
   assert.deepEqual(run('abc', ' n', { remaps }).commands, ['vimLike.toggleFileTree']);
+});
+
+test('autoReveal を切っている', () => {
+  // 既定の true では、ツリーを開いたときに編集中のファイルが「選択」されます。
+  // c で印を1つ足すと選択が2つになり、y や d がその1つも巻き込みます。d は削除
+  // なので、気づかないまま消えます。VS Code の getContext が「選択が2つ以上なら
+  // 選択、そうでなければフォーカス」という決め方をしているためです。
+  assert.equal(settings['explorer.autoReveal'], false);
+});
+
+test('現在のファイルへの移動は <leader>n が受け持つ', () => {
+  // 常時 reveal をやめた代わりです。設定側で reveal のコマンドを直接呼ぶ形には
+  // していません。呼ぶだけでは選択が残り、印付けを汚すためです。
+  const remaps = { ...configuration };
+  assert.deepEqual(run('abc', ' n', { remaps }).commands, ['vimLike.toggleFileTree']);
+
+  const revealsDirectly = [...configuration.normal!, ...configuration.visual!].some(rule =>
+    rule.commands?.includes('workbench.files.action.showActiveFileInExplorer')
+  );
+  assert.equal(revealsDirectly, false, 'reveal を設定から直接呼ばない');
 });
 
 test('テンプレートはヤンク先をクリップボードにしている', () => {
