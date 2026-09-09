@@ -401,7 +401,11 @@ function registerCommands(context: vscode.ExtensionContext): void {
     ['vimLike.backspace', SPECIAL_KEYS.backspace],
     ['vimLike.delete', SPECIAL_KEYS.delete],
     ['vimLike.tab', SPECIAL_KEYS.tab],
-    ['vimLike.shiftTab', SPECIAL_KEYS.shiftTab]
+    ['vimLike.shiftTab', SPECIAL_KEYS.shiftTab],
+    ['vimLike.left', SPECIAL_KEYS.left],
+    ['vimLike.right', SPECIAL_KEYS.right],
+    ['vimLike.up', SPECIAL_KEYS.up],
+    ['vimLike.down', SPECIAL_KEYS.down]
   ] as const) {
     register(id, () =>
       withActiveEditor(editor => enqueue(() => feed(editor, key, true)))

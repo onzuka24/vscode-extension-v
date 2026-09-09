@@ -103,6 +103,17 @@ export function describePending(state: VimState, leader: string): string {
   return describeKeys([...state.pendingKeys, ...state.remapPending], leader);
 }
 
+/**
+ * The arrow keys are the letters. Vim makes no distinction unless `whichwrap` is
+ * told to, and this extension does not offer that setting.
+ */
+const ARROW_MOTIONS: Readonly<Record<string, string>> = {
+  [SPECIAL_KEYS.left]: 'h',
+  [SPECIAL_KEYS.right]: 'l',
+  [SPECIAL_KEYS.up]: 'k',
+  [SPECIAL_KEYS.down]: 'j'
+};
+
 /** Normal-mode keys that are just shorthand for an operator, e.g. `D` for `d$`. */
 const OPERATOR_SHORTHAND: Readonly<Record<string, Partial<Command>>> = {
   D: { operator: 'd', motion: '$' },
@@ -316,6 +327,14 @@ export class VimEngine {
     if (key === SPECIAL_KEYS.delete) {
       // Exactly `x`, registers included, so replay rather than reimplement.
       return { state: { ...state, remapPending: [] }, actions: [], handled: true, replay: ['x'] };
+    }
+
+    // Replayed rather than reimplemented, which is what makes `d<Left>` delete a
+    // character and `3<Down>` move three lines: whatever was already pending is
+    // still pending, and the motion joins it exactly as the letter would have.
+    const motion = ARROW_MOTIONS[key];
+    if (motion) {
+      return { state: { ...state, remapPending: [] }, actions: [], handled: true, replay: [motion] };
     }
 
     return null;

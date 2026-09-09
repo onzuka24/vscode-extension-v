@@ -58,7 +58,7 @@ vscode-extension-v/
 │   ├── search.test.ts         検索とパターン
 │   ├── commandline.test.ts    `:` の Ex コマンド
 │   ├── repeat.test.ts         `.` の繰り返し
-│   ├── editingKeys.test.ts    Backspace / Enter / Delete / Tab
+│   ├── editingKeys.test.ts    Backspace / Enter / Delete / Tab / 矢印キー
 │   ├── remap.test.ts          キーの置き換え
 │   ├── leader.test.ts         leader と複数キーのシーケンス
 │   ├── transcript.test.ts     ターミナル出力の整形
@@ -233,21 +233,29 @@ Normal モードでは IME を切ってください。
 Escape・`Ctrl` 系・矢印キー・`Backspace`・`Enter`・`Delete`・`Tab`・`Shift+Tab` は `type` に
 流れてこないため、それらだけ `package.json` の `keybindings` で受けます。
 
-**このうち編集コマンドを持つキーは、受け止めないと Normal モードが成立しません。** 放っておくと
-VS Code の編集が働き、`type` をいくら押さえても Backspace が1文字消し、Enter が行を割り、
-Tab が字下げしてしまいます。同じ不具合を2回出しています
-（[#20](https://github.com/onzuka24/vscode-extension-v/issues/20) で Backspace・Enter・Delete、
-[#50](https://github.com/onzuka24/vscode-extension-v/issues/50) で Tab・Shift+Tab）。
+**受け止めないと Normal モードが成立しません。** 放っておくと VS Code 本来の動作が働き、`type` を
+いくら押さえても Backspace が1文字消し、Enter が行を割り、Tab が字下げし、左矢印が行頭から前の
+行へ回り込みます。**同じ不具合を3回出しています。**
 
-3回目を防ぐため、**「放っておくとバッファを変えるキー」の一覧を構造テストに置いてあります**
-（`manifest.test.ts` の `KEYS_THAT_WOULD_EDIT`）。キーバインドが欠けていれば落ちますし、
+| issue | キー | 放っておくと |
+| --- | --- | --- |
+| [#20](https://github.com/onzuka24/vscode-extension-v/issues/20) | Backspace・Enter・Delete | バッファを編集する |
+| [#50](https://github.com/onzuka24/vscode-extension-v/issues/50) | Tab・Shift+Tab | 字下げする |
+| [#64](https://github.com/onzuka24/vscode-extension-v/issues/64) | 矢印キー | 行末・行頭で回り込む |
+
+4回目を防ぐため、**「VS Code が先に反応するキー」の一覧を構造テストに置いてあります**
+（`manifest.test.ts` の `KEYS_VSCODE_WOULD_CLAIM`）。キーバインドが欠けていれば落ちますし、
 Insert モードで譲る条件が抜けていても落ちます。後者を欠かすと逆の壊れ方をします — Normal
 モードは安全になり、文字が打てなくなります。
 
-引き取り方は Vim に合わせます。`Backspace` `Enter` はモーション、`Delete` は `x` 相当で、
-`handleEditingKey` がその形で処理します。`Tab` と `Shift+Tab` は、対応する機能（ジャンプリスト、
-コマンドライン補完）を持っていないので、`isSpecialKey` の網で捨てられます。捨てるために
-`SPECIAL_KEYS` に載せている、という形です。
+引き取り方は Vim に合わせます。`Backspace` `Enter` はモーション、`Delete` は `x` 相当、矢印は
+`h` `l` `k` `j` そのもので、`handleEditingKey` が処理します。**そこでは再実装せず、対応する
+letter を `replay` に載せ直すだけ**です。だから `d<Left>` が1文字消し、`3<Down>` が3行下がります
+— 保留中のキーはそのままで、モーションだけが letter と同じように合流するためです。
+
+`Tab` と `Shift+Tab` は、対応する機能（ジャンプリスト、コマンドライン補完）を持っていないので、
+`isSpecialKey` の網で捨てられます。捨てるために `SPECIAL_KEYS` に載せている、という形です。
+矢印もコマンドライン入力中は同じ網に落ちます。`:w` が `:wh` にならないのはそのためです。
 
 `when` 句には必ず `editorTextFocus` を伴わせ、Escape についてはサジェストウィジェットなどが
 開いているときは譲るよう条件を絞っています。
