@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { Action, MarkListing } from './core/actions';
 import { AiPanel, compileAiPanels } from './core/aiPanels';
 import { SendOutcome, sendToAiPanel } from './adapter/aiPanel';
+import { HELP_SCHEME, HelpDocument } from './adapter/help';
 import { applyActions, readCursor } from './adapter/apply';
 import { DocumentBuffer } from './adapter/buffer';
 import { MarkDecorations } from './adapter/markDecorations';
@@ -19,6 +20,7 @@ let state: VimState = createState('normal');
 let statusBar: ModeStatusBar;
 let markDecorations: MarkDecorations;
 let terminal: TerminalBridge;
+let help: HelpDocument;
 let enabled = true;
 let leader: string = DEFAULT_LEADER;
 
@@ -83,6 +85,10 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(markDecorations);
   terminal = new TerminalBridge();
   context.subscriptions.push(terminal);
+  help = new HelpDocument(context.extensionUri);
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(HELP_SCHEME, help)
+  );
 
   enabled = configuration().get('enabled', true);
   state = createState(configuration().get('startInNormalMode', true) ? 'normal' : 'insert');
@@ -425,6 +431,8 @@ function registerCommands(context: vscode.ExtensionContext): void {
   });
 
   register('vimLike.showLog', () => terminal.showLog());
+
+  register('vimLike.showHelp', () => help.show());
 
   register('vimLike.sendToTerminal', () =>
     withActiveEditor(async editor => {

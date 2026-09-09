@@ -173,6 +173,21 @@ test('閉じる :` コマンドには必ず着地処理が付く', () => {
   }
 });
 
+test(':h と :help でヘルプを開く', () => {
+  assert.deepEqual(run(LINES, ':h<CR>').commands, ['vimLike.showHelp']);
+  assert.deepEqual(run(LINES, ':help<CR>').commands, ['vimLike.showHelp']);
+});
+
+test(':h は閉じる系ではないので着地処理が付かない', () => {
+  assert.ok(!run(LINES, ':h<CR>').commands.includes(REVEAL));
+});
+
+test(':h に引数は取れず、黙って無視もしない', () => {
+  // Vim の `:h {題目}` は未対応です。飛び先が無いのに開くより、断るほうがましです。
+  assert.deepEqual(run(LINES, ':h motion<CR>').commands, []);
+  assert.match(run(LINES, ':h motion<CR>').messages[0] ?? '', /^E492/);
+});
+
 test('綴りを間違えれば従来どおり断る', () => {
   assert.deepEqual(run(LINES, ':qaa<CR>').commands, []);
   assert.match(run(LINES, ':qaa<CR>').messages[0] ?? '', /^E492/);

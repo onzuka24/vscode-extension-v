@@ -37,6 +37,7 @@ vscode-extension-v/
 │   │   ├── terminal.ts        出力の取り込みと、行のターミナルへの送信
 │   │   ├── markIcon.ts        マーク名を描いた SVG の生成（vscode に依存しない）
 │   │   ├── markDecorations.ts マークをガターに描く
+│   │   ├── help.ts            `:h` — README を読み取り専用の文書として開く
 │   │   └── statusBar.ts       モード表示
 │   │
 │   └── extension.ts         activate。type の乗っ取りとコマンド・イベントの配線
