@@ -40,6 +40,17 @@
     { "before": ["<leader>", "c"], "commands": ["editor.action.commentLine"] },
     { "before": ["<leader>", "e"], "commands": ["vimLike.sendToAIPanel"] },
     { "before": ["<leader>", "E"], "commands": ["vimLike.chooseAIPanel"] },
+    { "before": ["<leader>", "v", "d"], "commands": ["editor.action.revealDefinition"] },
+    { "before": ["<leader>", "v", "p"], "commands": ["editor.action.peekDefinition"] },
+    { "before": ["<leader>", "v", "t"], "commands": ["editor.action.goToTypeDefinition"] },
+    { "before": ["<leader>", "v", "i"], "commands": ["editor.action.goToImplementation"] },
+    { "before": ["<leader>", "v", "r"], "commands": ["editor.action.goToReferences"] },
+    { "before": ["<leader>", "v", "c"], "commands": ["editor.action.showHover"] },
+    { "before": ["<leader>", "v", "h"], "commands": ["editor.action.hideHover"] },
+    { "before": ["<leader>", "v", "n"], "commands": ["editor.action.rename"] },
+    { "before": ["<leader>", "v", "a"], "commands": ["editor.action.quickFix"] },
+    { "before": ["<leader>", "v", "o"], "commands": ["workbench.action.navigateBack"] },
+    { "before": ["<leader>", "v", "u"], "commands": ["workbench.action.navigateForward"] },
     { "before": ["<leader>", "/"], "commands": ["actions.find"] }
   ],
   "vimLike.visualModeKeyBindings": [

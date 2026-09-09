@@ -146,6 +146,29 @@
     { "before": ["<leader>", "e"], "commands": ["vimLike.sendToAIPanel"] },
     { "before": ["<leader>", "E"], "commands": ["vimLike.chooseAIPanel"] },
 
+    // ---- VS Code の機能 (<leader>v + 1文字) ---------------------------------
+    // <leader>v で始まるものは VS Code 側の機能、という取り決めにしています。
+    // Vim に対応するコマンドがないものの置き場所を1か所に決めておくと、
+    // どちらの世界のキーなのかを覚えなくて済みます。
+    //
+    // vd と vu は対で入れてください。定義へ飛んだあと、この拡張機能の `` では
+    // 戻れません。ジャンプが VS Code 側で起きるので戻り先が記録されず、別ファイル
+    // へ飛んだ場合はなおさら届かないためです。vo が Vim の <c-o> にあたります。
+    { "before": ["<leader>", "v", "d"], "commands": ["editor.action.revealDefinition"] },
+    { "before": ["<leader>", "v", "p"], "commands": ["editor.action.peekDefinition"] },
+    { "before": ["<leader>", "v", "t"], "commands": ["editor.action.goToTypeDefinition"] },
+    { "before": ["<leader>", "v", "i"], "commands": ["editor.action.goToImplementation"] },
+    { "before": ["<leader>", "v", "r"], "commands": ["editor.action.goToReferences"] },
+    // マウスオーバーの表示。Escape では消えません (VS Code の hideHover に既定の
+    // キーがないため)。カーソルを動かせば消えます。h を1回で十分です。
+    { "before": ["<leader>", "v", "c"], "commands": ["editor.action.showHover"] },
+    { "before": ["<leader>", "v", "h"], "commands": ["editor.action.hideHover"] },
+    { "before": ["<leader>", "v", "n"], "commands": ["editor.action.rename"] },
+    { "before": ["<leader>", "v", "a"], "commands": ["editor.action.quickFix"] },
+    // 移動履歴を戻る・進む。Vim の <c-o> / <c-i> に対応します。
+    { "before": ["<leader>", "v", "o"], "commands": ["workbench.action.navigateBack"] },
+    { "before": ["<leader>", "v", "u"], "commands": ["workbench.action.navigateForward"] },
+
     // ---- 検索 ---------------------------------------------------------------
     // `/` と `?` はこの拡張機能の検索です (`d/foo` のようにオペレータと
     // 組み合わせられるのはこちらだけ)。VS Code の検索バーは履歴・正規表現の
@@ -180,6 +203,11 @@
 // ============================================================================
 //
 // init.vim には無いが足したもの
+//   <leader>v + 1文字 (定義へ移動、ホバー、リネームなど)
+//     Vim に対応するコマンドがないので、init.vim には出てきません。VS Code 側の
+//     機能はこの接頭辞にまとめる、という取り決めにしています。Normal モードだけに
+//     入れているのは、どれもカーソル位置に対して働くもので、選択範囲とは関係が
+//     ないためです。
 //   "vimLike.defaultRegister": "clipboard"
 //     Vim の set clipboard=unnamed に相当します。init.vim には書かれていませんが、
 //     VS Code では AI パネルや別のアプリへ渡す場面が多いので入れています。
