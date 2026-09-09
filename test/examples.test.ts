@@ -213,6 +213,53 @@ test('キーバインド例はすべて VS Code が解釈できるキーを使�
   }
 });
 
+test('ファイルツリーのファイル操作が揃っている', () => {
+  const inExplorer = new Map(
+    keybindings
+      .filter(binding => binding.when?.includes('filesExplorerFocus'))
+      .map(binding => [binding.key, binding.command])
+  );
+
+  assert.equal(inExplorer.get('r'), 'renameFile', 'r でリネーム');
+  assert.equal(inExplorer.get('d'), 'deleteFile', 'd で削除');
+  assert.equal(inExplorer.get('y'), 'filesExplorer.copy', 'y でコピー');
+  assert.equal(inExplorer.get('p'), 'filesExplorer.paste', 'p で貼り付け');
+});
+
+/** リストの操作は、ファイルツリーに限らずどのリストでも同じキーで効きます。 */
+const inList = new Map(
+  keybindings
+    .filter(binding => binding.when?.includes('listFocus'))
+    .map(binding => [binding.key, binding.command])
+);
+
+test('飛び飛びの複数選択ができる', () => {
+  // filesExplorer.copy と deleteFile は選択の一覧を受け取る作りなので、
+  // 選ぶ手段さえあればまとめて効きます。c は印の付け外しです。
+  assert.equal(inList.get('c'), 'list.toggleSelection', 'c で印を付け外しする');
+  assert.equal(inList.get('x'), 'list.clear', 'x で印を全部外す');
+  assert.equal(inList.get('shift+j'), 'list.expandSelectionDown', '続いた範囲は J で伸ばす');
+  assert.equal(inList.get('shift+k'), 'list.expandSelectionUp');
+});
+
+test('印を付けるキーはファイルツリー限定にしない', () => {
+  // ソース管理や検索結果でも同じ手つきで選べたほうがよいので listFocus です。
+  for (const key of ['c', 'x', 'shift+j', 'shift+k']) {
+    const binding = keybindings.find(entry => entry.key === key);
+    assert.ok(binding);
+    assert.ok(
+      !binding.when?.includes('filesExplorerFocus'),
+      `${key} はファイルツリーに限定しません`
+    );
+  }
+});
+
+test('c は移動と衝突しない', () => {
+  // c で印を付けたあと j で次へ進む使い方なので、両方が同じ条件で成り立ちます。
+  assert.equal(inList.get('j'), 'list.focusDown');
+  assert.equal(inList.get('c'), 'list.toggleSelection');
+});
+
 /**
  * ctrl / alt / cmd を伴うキーは、文字として打たれることがありません。`shift+g` は
  * G という1文字なので、ここには入れていません。
