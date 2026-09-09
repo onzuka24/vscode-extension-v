@@ -339,6 +339,46 @@ VS Code 既定のまま効きます）。オペレータの `c` は `c` のま�
 サイドバーやパネルの表示切替は VS Code 標準のキー（`Ctrl+B` など）をそのまま使います。
 この拡張機能では再定義していません。
 
+### VS Code の機能を呼ぶ（`<leader>v` + 1文字）
+
+定義へのジャンプやマウスオーバーの表示のように、Vim に対応するコマンドがないものは
+`<leader>v` に続けて1文字、という取り決めにしています。置き場所を1か所に決めておくと、
+どちらの世界のキーなのかを覚えなくて済みます。
+
+`examples/settings.json` に入っている割り当てです。
+
+```jsonc
+{ "before": ["<leader>", "v", "d"], "commands": ["editor.action.revealDefinition"] },
+{ "before": ["<leader>", "v", "p"], "commands": ["editor.action.peekDefinition"] },
+{ "before": ["<leader>", "v", "t"], "commands": ["editor.action.goToTypeDefinition"] },
+{ "before": ["<leader>", "v", "i"], "commands": ["editor.action.goToImplementation"] },
+{ "before": ["<leader>", "v", "r"], "commands": ["editor.action.goToReferences"] },
+{ "before": ["<leader>", "v", "c"], "commands": ["editor.action.showHover"] },
+{ "before": ["<leader>", "v", "h"], "commands": ["editor.action.hideHover"] },
+{ "before": ["<leader>", "v", "n"], "commands": ["editor.action.rename"] },
+{ "before": ["<leader>", "v", "a"], "commands": ["editor.action.quickFix"] },
+{ "before": ["<leader>", "v", "o"], "commands": ["workbench.action.navigateBack"] },
+{ "before": ["<leader>", "v", "u"], "commands": ["workbench.action.navigateForward"] }
+```
+
+`d` は定義へ、`p` は覗き見、`t` は型定義、`i` は実装、`r` は参照一覧です。`c` がマウスオーバーの
+表示、`h` がその非表示、`n` がリネーム、`a` がクイックフィックスです。`o` と `u` は移動履歴の
+戻る・進むで、Vim の `Ctrl+O` / `Ctrl+I` にあたります。
+
+**`o` と `u` は対で入れてください。** 定義へ飛んだあと、この拡張機能の `` ` `` では戻れません。
+ジャンプが VS Code の側で起きるので戻り先が記録されず、別のファイルへ飛んだ場合はなおさら
+届きません。これが無いと片道切符になります。
+
+**マウスオーバーの表示は Escape では消えません。** VS Code の `editor.action.hideHover` に既定の
+キーが割り当てられていないためです。この拡張機能の Escape は Normal モードへ戻るだけなので、
+消すにはカーソルを動かす（`h` を1回）か `<leader>vh` を使います。
+
+Normal モードだけに入れています。どれもカーソル位置に対して働くもので、選択範囲とは関係が
+ないためです。
+
+`v` 単独は Visual モードのままです。`<leader>` はスペースなので `<leader>v` は「スペース → v」の
+2打鍵で、単独の `v` とは別の並びになります。
+
 ### AI パネルへ送る（`<leader>e` `<leader>E`）
 
 現在行、または Visual モードの選択範囲を、開いている AI パネルへ送ります。送り先は
@@ -431,8 +471,8 @@ leader 起点のウィンドウ操作まで一式入っているので、setting
 
 | ファイル | 用途 |
 | --- | --- |
-| [settings.json](examples/settings.json) | **貼り付ける用。** 注釈なしで52行 |
-| [settings.jsonc](examples/settings.jsonc) | **読む用。** なぜその割り当てなのか、元の init.vim の行つきで193行 |
+| [settings.json](examples/settings.json) | **貼り付ける用。** 注釈なしで66行 |
+| [settings.jsonc](examples/settings.jsonc) | **読む用。** なぜその割り当てなのか、元の init.vim の行つきで254行 |
 
 注釈が3行に2行を占めるので、貼るときは邪魔になり、読むときは要るという事情です。`.json` は
 `.jsonc` から生成しています（`npm run examples`）ので、直すのは `.jsonc` のほうです。中身が

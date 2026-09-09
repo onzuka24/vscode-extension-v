@@ -85,6 +85,23 @@ test('テンプレートの AI パネルが読み込める', () => {
   assert.deepEqual(panels[0], { name: 'Claude Code', command: 'claude-vscode.focus' });
 });
 
+test('テンプレートの <leader>v は VS Code の機能に割り当てられている', () => {
+  const remaps = { ...configuration };
+  assert.deepEqual(run('abc', ' vd', { remaps }).commands, ['editor.action.revealDefinition']);
+  assert.deepEqual(run('abc', ' vc', { remaps }).commands, ['editor.action.showHover']);
+
+  // 定義へ飛んだあと戻る手段が要ります。この拡張機能の `` では戻れないためです。
+  assert.deepEqual(run('abc', ' vo', { remaps }).commands, ['workbench.action.navigateBack']);
+  assert.deepEqual(run('abc', ' vu', { remaps }).commands, ['workbench.action.navigateForward']);
+});
+
+test('<leader>v を足しても v 単独の Visual モードは壊れない', () => {
+  const remaps = { ...configuration };
+  assert.equal(run('abc', 'v', { remaps }).mode, 'visual');
+  assert.equal(run('abc', ' v', { remaps }).pending, '␣v', '途中は待機になる');
+  assert.equal(run('abc', ' v', { remaps }).mode, 'normal', 'leader の途中で Visual に入らない');
+});
+
 test('テンプレートの Ex コマンドが読み込める', () => {
   const { table, problems } = compileExCommands(settings['vimLike.exCommands']);
   assert.deepEqual(problems, []);
