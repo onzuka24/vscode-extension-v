@@ -473,6 +473,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
     // opens the sidebar on the explorer and puts the caret in the tree, so a
     // single press is enough to start moving with `j` and `k`.
     await vscode.commands.executeCommand('workbench.files.action.focusFilesExplorer');
+    await revealFileBeingEdited();
   });
 
   // `<leader>R`. Which terminal receives is otherwise whichever was open last,
@@ -579,6 +580,34 @@ function loadRemaps(): void {
 function withActiveEditor<T>(action: (editor: vscode.TextEditor) => T): T | undefined {
   const editor = vscode.window.activeTextEditor;
   return editor ? action(editor) : undefined;
+}
+
+/**
+ * Moves to the file being edited, then takes the selection off it.
+ *
+ * Two steps because revealing does both: `selectResource` calls `setFocus` *and*
+ * `setSelection`. The focus is what we came for. The selection is a liability —
+ * with one file selected and another marked with `c`, VS Code's `getContext`
+ * switches from "the focused row" to "the selection", so a `d` in the tree would
+ * delete the file that merely happened to be open.
+ *
+ * `list.toggleSelection` is the only way to drop it. `list.clear` looks right and
+ * is not: with a single item selected it calls `setFocus([])` as well, throwing
+ * away the position we just went to the trouble of finding.
+ *
+ * Skipped entirely unless the reveal is certain to have selected something. A
+ * stray `list.toggleSelection` would *add* the focused row to the selection
+ * rather than empty it, which is the state this exists to avoid.
+ */
+async function revealFileBeingEdited(): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || !isEditableEditor(editor)) return;
+  // Outside the workspace the reveal gives up and focuses a different view, so
+  // there would be no selection of ours to undo.
+  if (!vscode.workspace.getWorkspaceFolder(editor.document.uri)) return;
+
+  await vscode.commands.executeCommand('workbench.files.action.showActiveFileInExplorer');
+  await vscode.commands.executeCommand('list.toggleSelection');
 }
 
 /** The panel `<leader>e` sends to, or nothing when none is configured. */

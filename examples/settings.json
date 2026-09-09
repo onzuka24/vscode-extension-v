@@ -1,4 +1,5 @@
 {
+  "explorer.autoReveal": false,
   "vimLike.leader": " ",
   "vimLike.defaultRegister": "clipboard",
   "vimLike.exCommands": {

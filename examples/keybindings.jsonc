@@ -30,6 +30,22 @@
   { "key": "ctrl+d", "command": "list.focusPageDown", "when": "listFocus && !inputFocus" },
   { "key": "ctrl+u", "command": "list.focusPageUp", "when": "listFocus && !inputFocus" },
 
+  // 複数選択。まとめて y でコピーしたり d で消したりするためのものです。
+  //
+  // c が印の付け外しで、離れた行を選べます。フォーカスは動かないので、c のあと
+  // j で次へ進み、また c で印を付ける、という使い方になります。J / K は続いた
+  // 範囲を一気に伸ばす方です (VS Code の既定は Shift+Down / Shift+Up)。
+  // x で印を全部外します。
+  //
+  // 注意: 印が1つだけのときは、フォーカスしているものが優先されます。VS Code が
+  // 「選択が2つ以上なら選択、そうでなければフォーカス」という決め方をしているため
+  // です。1つに印を付けて離れると、その印ではなくフォーカス側が対象になります。
+  // 2つ以上に付ければ、印だけが対象になります。
+  { "key": "c", "command": "list.toggleSelection", "when": "listFocus && !inputFocus" },
+  { "key": "x", "command": "list.clear", "when": "listFocus && !inputFocus" },
+  { "key": "shift+j", "command": "list.expandSelectionDown", "when": "listFocus && !inputFocus" },
+  { "key": "shift+k", "command": "list.expandSelectionUp", "when": "listFocus && !inputFocus" },
+
   // ファイルツリー上で誤って入力する可能性の高いキーを無効化しておく
   { "key": "/", "command": "-list.filter", "when": "listFocus && !inputFocus" },
 
@@ -48,6 +64,7 @@
   { "key": "d", "command": "deleteFile", "when": "filesExplorerFocus && !inputFocus" },
   { "key": "y", "command": "filesExplorer.copy", "when": "filesExplorerFocus && !inputFocus" },
   { "key": "p", "command": "filesExplorer.paste", "when": "filesExplorerFocus && !inputFocus" },
+
 
   // Enter は対象がファイルかフォルダかで動作を分けます。
   //
