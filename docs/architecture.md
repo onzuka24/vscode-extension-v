@@ -58,7 +58,7 @@ vscode-extension-v/
 │   ├── search.test.ts         検索とパターン
 │   ├── commandline.test.ts    `:` の Ex コマンド
 │   ├── repeat.test.ts         `.` の繰り返し
-│   ├── editingKeys.test.ts    Backspace / Enter / Delete
+│   ├── editingKeys.test.ts    Backspace / Enter / Delete / Tab
 │   ├── remap.test.ts          キーの置き換え
 │   ├── leader.test.ts         leader と複数キーのシーケンス
 │   ├── transcript.test.ts     ターミナル出力の整形
@@ -230,15 +230,27 @@ flowchart TD
 コマンドの `d` を区別する手立てがなく、OS の IME を拡張機能から切ることもできないためです。
 Normal モードでは IME を切ってください。
 
-Escape・`Ctrl` 系・矢印キー・`Backspace`・`Enter`・`Delete` は `type` に流れてこないため、
-それらだけ `package.json` の `keybindings` で受けます。
+Escape・`Ctrl` 系・矢印キー・`Backspace`・`Enter`・`Delete`・`Tab`・`Shift+Tab` は `type` に
+流れてこないため、それらだけ `package.json` の `keybindings` で受けます。
 
-**このうち `Backspace` `Enter` `Delete` は、受け止めないと Normal モードが成立しません。**
-放っておくと VS Code の編集コマンドがそのまま働き、`type` をいくら押さえても Backspace が
-1文字消し、Enter が行を割ってしまいます。Vim ではどれもモーションなので（`Delete` だけ `x`
-相当）、`handleEditingKey` がその形で引き取ります。「Normal モードはバッファを変えない」を
-保つには、`type` の乗っ取りだけでは足りないということです。その `when` 句には必ず `editorTextFocus` を伴わせ、Escape については
-サジェストウィジェットなどが開いているときは譲るよう条件を絞っています。
+**このうち編集コマンドを持つキーは、受け止めないと Normal モードが成立しません。** 放っておくと
+VS Code の編集が働き、`type` をいくら押さえても Backspace が1文字消し、Enter が行を割り、
+Tab が字下げしてしまいます。同じ不具合を2回出しています
+（[#20](https://github.com/onzuka24/vscode-extension-v/issues/20) で Backspace・Enter・Delete、
+[#50](https://github.com/onzuka24/vscode-extension-v/issues/50) で Tab・Shift+Tab）。
+
+3回目を防ぐため、**「放っておくとバッファを変えるキー」の一覧を構造テストに置いてあります**
+（`manifest.test.ts` の `KEYS_THAT_WOULD_EDIT`）。キーバインドが欠けていれば落ちますし、
+Insert モードで譲る条件が抜けていても落ちます。後者を欠かすと逆の壊れ方をします — Normal
+モードは安全になり、文字が打てなくなります。
+
+引き取り方は Vim に合わせます。`Backspace` `Enter` はモーション、`Delete` は `x` 相当で、
+`handleEditingKey` がその形で処理します。`Tab` と `Shift+Tab` は、対応する機能（ジャンプリスト、
+コマンドライン補完）を持っていないので、`isSpecialKey` の網で捨てられます。捨てるために
+`SPECIAL_KEYS` に載せている、という形です。
+
+`when` 句には必ず `editorTextFocus` を伴わせ、Escape についてはサジェストウィジェットなどが
+開いているときは譲るよう条件を絞っています。
 
 ## リマップ — パーサの手前に置く変換層
 

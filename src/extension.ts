@@ -399,7 +399,9 @@ function registerCommands(context: vscode.ExtensionContext): void {
   for (const [id, key] of [
     ['vimLike.enter', SPECIAL_KEYS.enter],
     ['vimLike.backspace', SPECIAL_KEYS.backspace],
-    ['vimLike.delete', SPECIAL_KEYS.delete]
+    ['vimLike.delete', SPECIAL_KEYS.delete],
+    ['vimLike.tab', SPECIAL_KEYS.tab],
+    ['vimLike.shiftTab', SPECIAL_KEYS.shiftTab]
   ] as const) {
     register(id, () =>
       withActiveEditor(editor => enqueue(() => feed(editor, key, true)))
