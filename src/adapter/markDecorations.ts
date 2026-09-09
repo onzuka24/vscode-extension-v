@@ -53,7 +53,12 @@ export class MarkDecorations {
     return vscode.window.createTextEditorDecorationType({
       light: { gutterIconPath: vscode.Uri.parse(markIconUri(name, MARK_ICON_COLORS.light)) },
       dark: { gutterIconPath: vscode.Uri.parse(markIconUri(name, MARK_ICON_COLORS.dark)) },
-      gutterIconSize: 'contain'
+      gutterIconSize: 'contain',
+      // A mark is a point, not a span. VS Code's default is to grow a range when
+      // text is inserted at either edge, and the range here is empty and sits at
+      // column 0 — so opening a line there stretched it across two lines and the
+      // gutter drew the letter on both (#69).
+      rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed
     });
   }
 

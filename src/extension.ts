@@ -528,6 +528,29 @@ function registerListeners(context: vscode.ExtensionContext): void {
       pullCaretBack(event.textEditor, cursor);
     }),
 
+    /**
+     * Puts the mark icons back where the store says they are.
+     *
+     * The two disagree after an edit, and on purpose: marks deliberately do not
+     * follow changes, while VS Code moves a decoration along with the text around
+     * it. Insert a line above a marked one and the store still says line 3 while
+     * the icon has slid to line 4. Whichever is right, they cannot both be drawn,
+     * and the store is the one every motion reads.
+     *
+     * Redrawing is skipped unless this document actually has marks, so the usual
+     * case — typing in a file with none — costs one lookup.
+     */
+    vscode.workspace.onDidChangeTextDocument(event => {
+      if (event.contentChanges.length === 0) return;
+
+      const editor = vscode.window.activeTextEditor;
+      if (!editor || event.document !== editor.document) return;
+      if (engine.listMarks(event.document.uri.toString()).length === 0) return;
+
+      markDecorations.invalidate();
+      void refresh();
+    }),
+
     vscode.workspace.onDidChangeConfiguration(event => {
       if (!event.affectsConfiguration('vimLike')) return;
       enabled = configuration().get('enabled', true);
