@@ -73,6 +73,22 @@
         "title": "Vim Like: Shift+Tab Key"
       },
       {
+        "command": "vimLike.left",
+        "title": "Vim Like: Left Arrow"
+      },
+      {
+        "command": "vimLike.right",
+        "title": "Vim Like: Right Arrow"
+      },
+      {
+        "command": "vimLike.up",
+        "title": "Vim Like: Up Arrow"
+      },
+      {
+        "command": "vimLike.down",
+        "title": "Vim Like: Down Arrow"
+      },
+      {
         "command": "vimLike.openTerminalOutput",
         "title": "Vim Like: Open Last Terminal Output"
       },
@@ -366,6 +382,26 @@
         "command": "workbench.action.closeActiveEditor",
         "key": "ctrl+w c",
         "when": "vimLike.active && vimLike.mode != insert && editorTextFocus"
+      },
+      {
+        "command": "vimLike.left",
+        "key": "left",
+        "when": "vimLike.active && vimLike.mode != insert && editorTextFocus && !suggestWidgetVisible && !parameterHintsVisible && !renameInputVisible && !inSnippetMode && !editorHasMultipleSelections"
+      },
+      {
+        "command": "vimLike.right",
+        "key": "right",
+        "when": "vimLike.active && vimLike.mode != insert && editorTextFocus && !suggestWidgetVisible && !parameterHintsVisible && !renameInputVisible && !inSnippetMode && !editorHasMultipleSelections"
+      },
+      {
+        "command": "vimLike.up",
+        "key": "up",
+        "when": "vimLike.active && vimLike.mode != insert && editorTextFocus && !suggestWidgetVisible && !parameterHintsVisible && !renameInputVisible && !inSnippetMode && !editorHasMultipleSelections"
+      },
+      {
+        "command": "vimLike.down",
+        "key": "down",
+        "when": "vimLike.active && vimLike.mode != insert && editorTextFocus && !suggestWidgetVisible && !parameterHintsVisible && !renameInputVisible && !inSnippetMode && !editorHasMultipleSelections"
       },
       {
         "command": "vimLike.tab",

@@ -26,7 +26,21 @@ export const SPECIAL_KEYS = {
    * of those exists, being swallowed is the correct behaviour rather than a gap.
    */
   tab: '<Tab>',
-  shiftTab: '<S-Tab>'
+  shiftTab: '<S-Tab>',
+  /**
+   * The arrow keys. VS Code moves the caret with them in ways Vim does not:
+   * `cursorLeft` at column 0 wraps to the end of the line above (#64), and
+   * `cursorRight` wraps the other way.
+   *
+   * Vim treats them as exactly `h` `l` `k` `j` — measured against Vim 9.1 with
+   * the default `whichwrap=b,s`, where only Backspace and Space wrap. So that is
+   * what they become here, `whichwrap` itself not being a setting this extension
+   * offers.
+   */
+  left: '<Left>',
+  right: '<Right>',
+  up: '<Up>',
+  down: '<Down>'
 } as const;
 
 export type SpecialKey = (typeof SPECIAL_KEYS)[keyof typeof SPECIAL_KEYS];
@@ -54,6 +68,10 @@ const ALIASES: Readonly<Record<string, string>> = {
   tab: SPECIAL_KEYS.tab,
   's-tab': SPECIAL_KEYS.shiftTab,
   'shift-tab': SPECIAL_KEYS.shiftTab,
+  left: SPECIAL_KEYS.left,
+  right: SPECIAL_KEYS.right,
+  up: SPECIAL_KEYS.up,
+  down: SPECIAL_KEYS.down,
   space: SPACE
 };
 

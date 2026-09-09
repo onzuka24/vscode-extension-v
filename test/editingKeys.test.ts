@@ -147,3 +147,70 @@ test('リマップの綴りとしても書ける', () => {
   const session = run(TEXT, 'gt', { remaps });
   assert.equal(session.text, TEXT, '展開先が Tab でも本文は変わらない');
 });
+
+// ---------------------------------------------------------------------------
+// 矢印キー (issue #64)
+// ---------------------------------------------------------------------------
+
+/**
+ * 矢印も `type` を通らないので、放っておくと VS Code の `cursorLeft` などが働きます。
+ * それらは行頭・行末で隣の行へ回り込むので、Vim とずれます。
+ *
+ * 期待値は Vim 9.1 の実測です。既定の `whichwrap` は `b,s`（Backspace と Space だけが
+ * 回り込む）なので、4つとも `h` `l` `k` `j` とまったく同じ動きになります。
+ */
+
+const TWO = 'hello\nab\nworld';
+
+test('行頭の左矢印は前の行へ回り込まない', () => {
+  // これが issue #64 の本体。VS Code は 1:0 から 0:4 へ動かしてしまう。
+  assert.equal(run(TWO, '<Left>', { cursor: pos(2, 0) }).at, '2:0');
+  assert.equal(run(TWO, 'h', { cursor: pos(2, 0) }).at, '2:0', 'h と同じ');
+});
+
+test('行末の右矢印は次の行へ回り込まない', () => {
+  assert.equal(run(TWO, '<Right>', { cursor: pos(0, 4) }).at, '0:4');
+  assert.equal(run(TWO, 'l', { cursor: pos(0, 4) }).at, '0:4', 'l と同じ');
+});
+
+test('行の途中では普通に動く', () => {
+  assert.equal(run(TWO, '<Left>', { cursor: pos(0, 3) }).at, '0:2');
+  assert.equal(run(TWO, '<Right>', { cursor: pos(0, 1) }).at, '0:2');
+  assert.equal(run(TWO, '<Down>', { cursor: pos(0, 1) }).at, '1:1');
+  assert.equal(run(TWO, '<Up>', { cursor: pos(2, 1) }).at, '1:1');
+});
+
+test('上下の矢印は希望列を覚えている', () => {
+  // 長い行から短い行へ降りて戻ると、元の列に帰ります。j / k と同じ扱いです。
+  assert.equal(run(TWO, '<Down>', { cursor: pos(0, 4) }).at, '1:1', '短い行では末尾へ寄る');
+  assert.equal(run(TWO, '<Down><Up>', { cursor: pos(0, 4) }).at, '0:4', '戻ると元の列へ');
+});
+
+test('矢印はカウントを取る', () => {
+  assert.equal(run(TWO, '3<Right>', { cursor: pos(0, 0) }).at, '0:3');
+  assert.equal(run('a\nb\nc\nd', '2<Down>').at, '2:0');
+});
+
+test('矢印はオペレータと組み合わせられる', () => {
+  assert.equal(run('hello', 'd<Right>').text, 'ello');
+  assert.equal(run('hello', 'd<Left>', { cursor: pos(0, 2) }).text, 'hllo');
+  assert.equal(run('one\ntwo\nthree', 'd<Down>').text, 'three');
+});
+
+test('Visual モードでは選択が伸びる', () => {
+  assert.equal(run('hello', 'v<Right><Right>d').text, 'lo');
+});
+
+test('コマンドライン入力中の矢印は行を汚さない', () => {
+  // 回り込みより静かな壊れ方ですが、`:w` が `:wh` になるのは同じくらい困ります。
+  assert.equal(run(TWO, ':w<Left>').pending, ':w');
+  assert.deepEqual(run(TWO, ':w<Left><CR>').commands, ['workbench.action.files.save']);
+  assert.equal(run(TWO, '/he<Up>').pending, '/he');
+});
+
+test('設定では <Left> <Down> などと書ける', () => {
+  assert.equal(normalizeKey('<Left>', null), SPECIAL_KEYS.left);
+  assert.equal(normalizeKey('<down>', null), SPECIAL_KEYS.down);
+  assert.ok(isSpecialKey(SPECIAL_KEYS.up));
+  assert.ok(isSpecialKey(SPECIAL_KEYS.right));
+});

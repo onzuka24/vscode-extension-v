@@ -78,24 +78,41 @@ test('the core layer never imports vscode', () => {
 });
 
 /**
- * Keys that edit the buffer if this extension leaves them alone.
+ * Keys VS Code acts on that never reach the `type` command.
  *
- * None of them reaches the `type` command, so the interceptor that makes Normal
- * mode a mode never sees them: VS Code runs its own editing command and the file
- * changes while the user is, as far as they can tell, in Normal mode. That is one
- * bug, found twice — Backspace, Enter and Delete
- * ([#20](https://github.com/onzuka24/vscode-extension-v/issues/20)), then Tab and
- * Shift+Tab ([#50](https://github.com/onzuka24/vscode-extension-v/issues/50)).
- * Listing them here is what stops it being found a third time.
+ * The interceptor that makes Normal mode a mode never sees these, so VS Code runs
+ * its own command and the editor behaves in a way Vim does not — while the user
+ * is, as far as they can tell, in Normal mode. That is one bug, found three times:
+ *
+ * - [#20](https://github.com/onzuka24/vscode-extension-v/issues/20) Backspace,
+ *   Enter and Delete edited the buffer
+ * - [#50](https://github.com/onzuka24/vscode-extension-v/issues/50) Tab and
+ *   Shift+Tab indented it
+ * - [#64](https://github.com/onzuka24/vscode-extension-v/issues/64) the arrow keys
+ *   wrapped the caret round the end of a line
+ *
+ * Listing them here is what stops it being found a fourth time. A key belongs on
+ * this list when VS Code binds it to something in a plain text editor and Vim
+ * would do something else.
  */
-const KEYS_THAT_WOULD_EDIT = ['backspace', 'delete', 'enter', 'tab', 'shift+tab'];
+const KEYS_VSCODE_WOULD_CLAIM = [
+  'backspace',
+  'delete',
+  'enter',
+  'tab',
+  'shift+tab',
+  'left',
+  'right',
+  'up',
+  'down'
+];
 
-test('every key that would otherwise edit the buffer is claimed', () => {
+test('every key VS Code would otherwise act on is claimed', () => {
   const claimed = new Set(manifest.contributes.keybindings.map(binding => binding.key));
-  for (const key of KEYS_THAT_WOULD_EDIT) {
+  for (const key of KEYS_VSCODE_WOULD_CLAIM) {
     assert.ok(
       claimed.has(key),
-      `"${key}" edits the buffer in VS Code and never reaches \`type\`, so Normal mode has to bind it`
+      `"${key}" never reaches \`type\`, so Normal mode has to bind it or VS Code's own behaviour wins`
     );
   }
 });
@@ -103,11 +120,14 @@ test('every key that would otherwise edit the buffer is claimed', () => {
 test('those keys are handed back to VS Code in Insert mode', () => {
   // Claiming them unconditionally would be worse than not claiming them: Normal
   // mode would be safe and typing would be broken.
-  const guarded = manifest.contributes.keybindings.filter(binding => KEYS_THAT_WOULD_EDIT.includes(binding.key));
-  assert.equal(guarded.length, KEYS_THAT_WOULD_EDIT.length);
+  const guarded = manifest.contributes.keybindings.filter(binding =>
+    KEYS_VSCODE_WOULD_CLAIM.includes(binding.key)
+  );
+  assert.equal(guarded.length, KEYS_VSCODE_WOULD_CLAIM.length);
 
   for (const binding of guarded) {
     assert.match(binding.when ?? '', /vimLike\.mode != insert/, `${binding.key} must stand aside in Insert mode`);
     assert.match(binding.when ?? '', /!suggestWidgetVisible/, `${binding.key} must stand aside for the suggest widget`);
+    assert.match(binding.when ?? '', /editorTextFocus/, `${binding.key} must only apply inside an editor`);
   }
 });
