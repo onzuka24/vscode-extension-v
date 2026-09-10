@@ -352,8 +352,30 @@ test('同じキーを複数に割り当てる場合は条件が重ならない',
  * `inQuickOpen` だけは「見えているか」でありながら例外です。選択リストは出ている
  * あいだキーボードを丸ごと占有するので、別の場所で打っている最中に真になることが
  * ありません。
+ *
+ * `Focused` も認めているのは `browserFocused` のためです。VS Code 組み込みブラウザの
+ * コンテナに紐づいたスコープ付きのキーで、そこにフォーカスがあるときだけ立ちます。
+ * `listFocus` などと同じ仕組みで、名前の綴りだけが違います。
  */
-const FOCUS_CONDITION = /focusedView|activeWebviewPanelId|Focus\b|inQuickOpen/;
+const FOCUS_CONDITION = /focusedView|activeWebviewPanelId|Focus(ed)?\b|inQuickOpen/;
+
+test('エディターへ戻るキーは、組み込みブラウザからも効く', () => {
+  // activeWebviewPanelId が立つのは拡張機能が作った Webview だけです。:preview で
+  // HTML を開くと出る組み込みブラウザはコアのエディタなので該当せず、これが無いと
+  // 「フォーカスを移す」側が成立して、ブラウザ自身のグループへ移るだけになります。
+  for (const key of ['ctrl+;', 'ctrl+escape']) {
+    const both = keybindings.filter(binding => binding.key === key);
+    assert.equal(both.length, 2, `${key} は2通りに分かれている`);
+
+    const close = both.find(binding => binding.command === 'workbench.action.closeActiveEditor');
+    const focus = both.find(binding => binding.command === 'workbench.action.focusActiveEditorGroup');
+    assert.ok(close && focus);
+
+    assert.match(close.when ?? '', /browserFocused/, `${key} はブラウザからも閉じられる`);
+    // 片方だけ直すと両方成立し、VS Code は後に書いたほうを採ります。
+    assert.match(focus.when ?? '', /!browserFocused/, `${key} の分岐が重ならない`);
+  }
+});
 
 test('キーバインドは、見えているかではなくフォーカスで絞る', () => {
   for (const binding of keybindings) {

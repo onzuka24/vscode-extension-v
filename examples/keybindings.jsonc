@@ -100,7 +100,7 @@
   {
     "key": "ctrl+;",
     "command": "workbench.action.focusActiveEditorGroup",
-    "when": "!editorTextFocus && !activeWebviewPanelId"
+    "when": "!editorTextFocus && !activeWebviewPanelId && !browserFocused"
   },
 
   // (b) Webview が「エディターのタブ」として開いていて、その中にいる場合。
@@ -111,14 +111,19 @@
   //     タブから出る必要があります。
   //
   //     activeWebviewPanelId はエディターグループに紐づくキーとして登録されており、
-  //     Webview のタブにフォーカスがあるときだけ立ちます。だから (a) と排他です。
+  //     Webview のタブにフォーカスがあるときだけ立ちます。
+  //
+  //     browserFocused も要ります。activeWebviewPanelId が立つのは拡張機能が作った
+  //     Webview だけで、VS Code 組み込みのブラウザ (:preview で HTML を開くと出る
+  //     もの) はコアのエディタなので該当しません。これが無いと (a) のほうが成立し、
+  //     ブラウザ自身のグループへフォーカスを移すだけで何も起きなくなります。
   //
   //     閉じずに戻りたい場合は workbench.action.previousEditor に差し替えて
   //     ください。ただし直前のタブが別の Webview だと、そちらへ移るだけになります。
   {
     "key": "ctrl+;",
     "command": "workbench.action.closeActiveEditor",
-    "when": "!editorTextFocus && activeWebviewPanelId"
+    "when": "!editorTextFocus && (activeWebviewPanelId || browserFocused)"
   },
 
   // 同じ2つを ctrl+escape でも受け付けます。条件も呼ぶコマンドも上と同じで、
@@ -130,12 +135,12 @@
   {
     "key": "ctrl+escape",
     "command": "workbench.action.focusActiveEditorGroup",
-    "when": "!editorTextFocus && !activeWebviewPanelId"
+    "when": "!editorTextFocus && !activeWebviewPanelId && !browserFocused"
   },
   {
     "key": "ctrl+escape",
     "command": "workbench.action.closeActiveEditor",
-    "when": "!editorTextFocus && activeWebviewPanelId"
+    "when": "!editorTextFocus && (activeWebviewPanelId || browserFocused)"
   },
 
   // ---- ここから下は上の2行と重なる、別の戻り方です ------------------------

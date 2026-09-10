@@ -34,22 +34,22 @@
   {
     "key": "ctrl+;",
     "command": "workbench.action.focusActiveEditorGroup",
-    "when": "!editorTextFocus && !activeWebviewPanelId"
+    "when": "!editorTextFocus && !activeWebviewPanelId && !browserFocused"
   },
   {
     "key": "ctrl+;",
     "command": "workbench.action.closeActiveEditor",
-    "when": "!editorTextFocus && activeWebviewPanelId"
+    "when": "!editorTextFocus && (activeWebviewPanelId || browserFocused)"
   },
   {
     "key": "ctrl+escape",
     "command": "workbench.action.focusActiveEditorGroup",
-    "when": "!editorTextFocus && !activeWebviewPanelId"
+    "when": "!editorTextFocus && !activeWebviewPanelId && !browserFocused"
   },
   {
     "key": "ctrl+escape",
     "command": "workbench.action.closeActiveEditor",
-    "when": "!editorTextFocus && activeWebviewPanelId"
+    "when": "!editorTextFocus && (activeWebviewPanelId || browserFocused)"
   },
   { "key": "escape", "command": "workbench.action.focusActiveEditorGroup", "when": "filesExplorerFocus && !inputFocus" },
   { "key": "space l", "command": "workbench.action.navigateRight", "when": "filesExplorerFocus && !inputFocus" },
