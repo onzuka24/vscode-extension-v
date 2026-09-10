@@ -87,6 +87,9 @@ const COMMANDS: Readonly<Record<string, readonly string[]>> = {
   // you move around with Vim's own keys.
   h: ['vimLike.showHelp'],
   help: ['vimLike.showHelp'],
+  // `:preview` は Vim にない名前です。`:prev` を足していないのは、Vim ではそれが
+  // `:previous` (引数リストの前のファイル) だからで、奪うと意味が入れ替わります。
+  preview: ['vimLike.showPreview'],
   sp: ['workbench.action.splitEditorDown'],
   split: ['workbench.action.splitEditorDown'],
   vs: ['workbench.action.splitEditor'],

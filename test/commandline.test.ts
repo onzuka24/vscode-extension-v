@@ -173,6 +173,18 @@ test('閉じる :` コマンドには必ず着地処理が付く', () => {
   }
 });
 
+test(':preview でプレビューを出す', () => {
+  assert.deepEqual(run(LINES, ':preview<CR>').commands, ['vimLike.showPreview']);
+  assert.ok(!run(LINES, ':preview<CR>').commands.includes(REVEAL), '閉じる系ではない');
+});
+
+test(':prev は取らない', () => {
+  // Vim の :prev は :previous (引数リストの前のファイル) です。奪うと意味が
+  // 入れ替わるので、綴りを短くしていません。
+  assert.deepEqual(run(LINES, ':prev<CR>').commands, []);
+  assert.match(run(LINES, ':prev<CR>').messages[0] ?? '', /^E492/);
+});
+
 test(':h と :help でヘルプを開く', () => {
   assert.deepEqual(run(LINES, ':h<CR>').commands, ['vimLike.showHelp']);
   assert.deepEqual(run(LINES, ':help<CR>').commands, ['vimLike.showHelp']);

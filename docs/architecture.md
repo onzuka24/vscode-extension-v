@@ -39,6 +39,7 @@ vscode-extension-v/
 │   │   ├── markDecorations.ts マークをガターに描く
 │   │   ├── help.ts            `:h` — README を読み取り専用の文書として開く
 │   │   ├── helpLinks.ts       ヘルプ内の相対リンクの書き換え（vscode に依存しない）
+│   │   ├── preview.ts         `:preview` — 言語ごとの行き先（vscode に依存しない）
 │   │   └── statusBar.ts       モード表示
 │   │
 │   └── extension.ts         activate。type の乗っ取りとコマンド・イベントの配線
