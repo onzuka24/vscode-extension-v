@@ -85,7 +85,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(markDecorations);
   terminal = new TerminalBridge();
   context.subscriptions.push(terminal);
-  help = new HelpDocument(context.extensionUri);
+  help = new HelpDocument(context.extensionUri, repositoryUrlOf(context));
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(HELP_SCHEME, help)
   );
@@ -566,6 +566,16 @@ function registerListeners(context: vscode.ExtensionContext): void {
       void refresh();
     })
   );
+}
+
+/**
+ * Where this extension's source lives, as `package.json` states it. Read rather
+ * than written down again, so the two cannot drift apart.
+ */
+function repositoryUrlOf(context: vscode.ExtensionContext): string {
+  const manifest = context.extension.packageJSON as { repository?: { url?: string } | string };
+  const repository = typeof manifest.repository === 'string' ? manifest.repository : manifest.repository?.url;
+  return repository ?? 'https://github.com/onzuka24/vscode-extension-v';
 }
 
 // -------------------------------------------------------------------- shared

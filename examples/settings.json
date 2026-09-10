@@ -50,6 +50,7 @@
     { "before": ["<leader>", "v", "h"], "commands": ["editor.action.hideHover"] },
     { "before": ["<leader>", "v", "n"], "commands": ["editor.action.rename"] },
     { "before": ["<leader>", "v", "a"], "commands": ["editor.action.quickFix"] },
+    { "before": ["<leader>", "v", "l"], "commands": ["editor.action.openLink"] },
     { "before": ["<leader>", "v", "o"], "commands": ["workbench.action.navigateBack"] },
     { "before": ["<leader>", "v", "u"], "commands": ["workbench.action.navigateForward"] },
     { "before": ["<leader>", "/"], "commands": ["actions.find"] }

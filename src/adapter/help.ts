@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { absoluteLinks } from './helpLinks';
 
 /**
  * `:h` — the README, opened as a document.
@@ -26,7 +27,11 @@ export const HELP_URI = vscode.Uri.parse(`${HELP_SCHEME}:Vim Like の使い方.m
 export class HelpDocument implements vscode.TextDocumentContentProvider {
   private text: string | undefined;
 
-  public constructor(private readonly extensionUri: vscode.Uri) {}
+  public constructor(
+    private readonly extensionUri: vscode.Uri,
+    /** `package.json`'s `repository.url`, so the address is not written twice. */
+    private readonly repositoryUrl: string
+  ) {}
 
   public async provideTextDocumentContent(): Promise<string> {
     this.text ??= await this.read();
@@ -42,7 +47,12 @@ export class HelpDocument implements vscode.TextDocumentContentProvider {
   private async read(): Promise<string> {
     const file = vscode.Uri.joinPath(this.extensionUri, 'README.md');
     try {
-      return new TextDecoder().decode(await vscode.workspace.fs.readFile(file));
+      const markdown = new TextDecoder().decode(await vscode.workspace.fs.readFile(file));
+      // The README's links are relative to the repository. Under this document's
+      // own scheme they would resolve to documents nobody can produce, so they
+      // are pointed at the repository instead — where, unlike the VSIX, `docs/`
+      // actually exists.
+      return absoluteLinks(markdown, this.repositoryUrl);
     } catch (error) {
       // Saying which file was looked for is the whole value of this message: the
       // usual cause is a packaging change that stopped shipping it.

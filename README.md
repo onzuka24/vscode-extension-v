@@ -225,6 +225,11 @@ Vim の機能が1つも使えません。
 読み取り専用です。実体は拡張機能のインストール先にあるファイルなので、打ち間違いで書き換わって
 は困ります。閉じるときに保存を聞かれることもありません。`:q` で閉じられます。
 
+ヘルプの中のリンクは、**リポジトリの URL に書き換えてから**表示します。相対のままだとヘルプ専用の
+スキームで解決されてしまい、この拡張機能が出せない文書を要求することになるためです。加えて
+`docs/` は VSIX に同梱していないので、インストール済みの拡張機能ではローカルに開く先がそもそも
+ありません。書き換え先の URL は `package.json` の `repository` から取るので、二重に持っていません。
+
 Vim の `:h {題目}` のような題目指定は未対応です。`:h motion` は断ります（飛び先がないのに開く
 より、断るほうがましだという判断です）。文書として開いているので、`:h` してから `/motion` で
 探せます。
@@ -373,6 +378,7 @@ VS Code 既定のまま効きます）。オペレータの `c` は `c` のま�
 { "before": ["<leader>", "v", "h"], "commands": ["editor.action.hideHover"] },
 { "before": ["<leader>", "v", "n"], "commands": ["editor.action.rename"] },
 { "before": ["<leader>", "v", "a"], "commands": ["editor.action.quickFix"] },
+{ "before": ["<leader>", "v", "l"], "commands": ["editor.action.openLink"] },
 { "before": ["<leader>", "v", "o"], "commands": ["workbench.action.navigateBack"] },
 { "before": ["<leader>", "v", "u"], "commands": ["workbench.action.navigateForward"] }
 ```
@@ -380,6 +386,14 @@ VS Code 既定のまま効きます）。オペレータの `c` は `c` のま�
 `d` は定義へ、`p` は覗き見、`t` は型定義、`i` は実装、`r` は参照一覧です。`c` がマウスオーバーの
 表示、`h` がその非表示、`n` がリネーム、`a` がクイックフィックスです。`o` と `u` は移動履歴の
 戻る・進むで、Vim の `Ctrl+O` / `Ctrl+I` にあたります。
+
+`l` はカーソル位置のリンクを開きます。Markdown の `[文字](パス)` を辿るのはこれです。
+**`d`（定義へ移動）では辿れません。** Markdown の定義プロバイダは、見出しの指定が付いたリンク
+（`[x](a.md#見出し)`）と参照形式（`[x][ref]`）しか解決せず、指定のない普通のリンクには何も
+返さないためです。
+
+`<leader>l`（右のグループへ移動）とは別物です。`<leader>` はスペースなので、`<leader>vl` は
+「スペース → v → l」の3打鍵になります。
 
 **`o` と `u` は対で入れてください。** 定義へ飛んだあと、この拡張機能の `` ` `` では戻れません。
 ジャンプが VS Code の側で起きるので戻り先が記録されず、別のファイルへ飛んだ場合はなおさら
@@ -487,8 +501,8 @@ leader 起点のウィンドウ操作まで一式入っているので、setting
 
 | ファイル | 用途 |
 | --- | --- |
-| [settings.json](examples/settings.json) | **貼り付ける用。** 注釈なしで67行 |
-| [settings.jsonc](examples/settings.jsonc) | **読む用。** なぜその割り当てなのか、元の init.vim の行つきで269行 |
+| [settings.json](examples/settings.json) | **貼り付ける用。** 注釈なしで68行 |
+| [settings.jsonc](examples/settings.jsonc) | **読む用。** なぜその割り当てなのか、元の init.vim の行つきで273行 |
 
 注釈が3行に2行を占めるので、貼るときは邪魔になり、読むときは要るという事情です。`.json` は
 `.jsonc` から生成しています（`npm run examples`）ので、直すのは `.jsonc` のほうです。中身が

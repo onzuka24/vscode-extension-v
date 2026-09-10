@@ -111,9 +111,20 @@ test('テンプレートの <leader>v は VS Code の機能に割り当てられ
   assert.deepEqual(run('abc', ' vd', { remaps }).commands, ['editor.action.revealDefinition']);
   assert.deepEqual(run('abc', ' vc', { remaps }).commands, ['editor.action.showHover']);
 
+  // Markdown の [文字](パス) を辿るのはこれです。<leader>vd では辿れません。
+  assert.deepEqual(run('abc', ' vl', { remaps }).commands, ['editor.action.openLink']);
+
   // 定義へ飛んだあと戻る手段が要ります。この拡張機能の `` では戻れないためです。
   assert.deepEqual(run('abc', ' vo', { remaps }).commands, ['workbench.action.navigateBack']);
   assert.deepEqual(run('abc', ' vu', { remaps }).commands, ['workbench.action.navigateForward']);
+});
+
+test('<leader>v と既存の <leader>l は別物のまま', () => {
+  // <leader>l は init.vim 由来の「右のグループへ移動」です。リンクを開くほうは
+  // <leader>vl に置いてあり、こちらを奪っていません。
+  const remaps = { ...configuration };
+  assert.deepEqual(run('abc', ' l', { remaps }).commands, ['workbench.action.navigateRight']);
+  assert.deepEqual(run('abc', ' vl', { remaps }).commands, ['editor.action.openLink']);
 });
 
 test('<leader>v を足しても v 単独の Visual モードは壊れない', () => {

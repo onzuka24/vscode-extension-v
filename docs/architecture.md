@@ -38,6 +38,7 @@ vscode-extension-v/
 │   │   ├── markIcon.ts        マーク名を描いた SVG の生成（vscode に依存しない）
 │   │   ├── markDecorations.ts マークをガターに描く
 │   │   ├── help.ts            `:h` — README を読み取り専用の文書として開く
+│   │   ├── helpLinks.ts       ヘルプ内の相対リンクの書き換え（vscode に依存しない）
 │   │   └── statusBar.ts       モード表示
 │   │
 │   └── extension.ts         activate。type の乗っ取りとコマンド・イベントの配線

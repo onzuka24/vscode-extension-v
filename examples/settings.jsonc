@@ -181,6 +181,10 @@
     { "before": ["<leader>", "v", "n"], "commands": ["editor.action.rename"] },
     { "before": ["<leader>", "v", "a"], "commands": ["editor.action.quickFix"] },
     // 移動履歴を戻る・進む。Vim の <c-o> / <c-i> に対応します。
+    // カーソル位置のリンクを開きます。Markdown の [文字](パス) を辿るのはこれです。
+    // <leader>vd (定義へ移動) では辿れません。Markdown の定義プロバイダは、見出しの
+    // 指定が付いたリンクと参照形式しか解決しないためです。
+    { "before": ["<leader>", "v", "l"], "commands": ["editor.action.openLink"] },
     { "before": ["<leader>", "v", "o"], "commands": ["workbench.action.navigateBack"] },
     { "before": ["<leader>", "v", "u"], "commands": ["workbench.action.navigateForward"] },
 
