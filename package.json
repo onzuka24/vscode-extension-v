@@ -105,6 +105,10 @@
         "title": "Vim Like: Show Help"
       },
       {
+        "command": "vimLike.showPreview",
+        "title": "Vim Like: Show Preview"
+      },
+      {
         "command": "vimLike.revealFileTreeIfEmpty",
         "title": "Vim Like: Reveal File Tree If Nothing Is Open"
       },

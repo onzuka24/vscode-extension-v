@@ -3,6 +3,7 @@ import { Action, MarkListing } from './core/actions';
 import { AiPanel, compileAiPanels } from './core/aiPanels';
 import { SendOutcome, sendToAiPanel } from './adapter/aiPanel';
 import { HELP_SCHEME, HelpDocument } from './adapter/help';
+import { previewCommandFor } from './adapter/preview';
 import { applyActions, readCursor } from './adapter/apply';
 import { DocumentBuffer } from './adapter/buffer';
 import { MarkDecorations } from './adapter/markDecorations';
@@ -433,6 +434,18 @@ function registerCommands(context: vscode.ExtensionContext): void {
   register('vimLike.showLog', () => terminal.showLog());
 
   register('vimLike.showHelp', () => help.show());
+
+  // `:preview`. Markdown has a preview of its own; for anything else VS Code is
+  // asked which editors it has for the file, because only it knows what other
+  // extensions have registered.
+  register('vimLike.showPreview', async () => {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      void vscode.window.showInformationMessage('Vim Like: プレビューする文書がありません。');
+      return;
+    }
+    await vscode.commands.executeCommand(previewCommandFor(editor.document.languageId));
+  });
 
   register('vimLike.sendToTerminal', () =>
     withActiveEditor(async editor => {
