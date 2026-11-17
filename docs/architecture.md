@@ -27,6 +27,7 @@ vscode-extension-v/
 │   │   ├── excommands.ts      `:` で受け付ける Ex コマンドの表
 │   │   ├── commands.ts        設定に書かれた VS Code コマンド（ID と引数）の読み取り
 │   │   ├── search.ts          パターンの照合と、次の一致の探索
+│   │   ├── fullWidthSpace.ts  全角スペースの位置の列挙
 │   │   ├── actions.ts         エンジンが返す副作用の記述（データ）
 │   │   └── engine.ts          上記を束ねる。キーを受けて Action を返す
 │   │
@@ -37,6 +38,7 @@ vscode-extension-v/
 │   │   ├── terminal.ts        出力の取り込みと、行のターミナルへの送信
 │   │   ├── markIcon.ts        マーク名を描いた SVG の生成（vscode に依存しない）
 │   │   ├── markDecorations.ts マークをガターに描く
+│   │   ├── fullWidthSpaceDecorations.ts 全角スペースを枠で囲む
 │   │   ├── help.ts            `:h` — README を読み取り専用の文書として開く
 │   │   ├── helpLinks.ts       ヘルプ内の相対リンクの書き換え（vscode に依存しない）
 │   │   ├── preview.ts         `:preview` — 言語ごとの行き先（vscode に依存しない）

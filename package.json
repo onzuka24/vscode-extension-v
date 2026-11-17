@@ -152,6 +152,11 @@
           "default": true,
           "markdownDescription": "マークを付けた行の行番号の横に、マーク名 (`a` `b` …) を表示します。マークを使っていなければ何も出ません。"
         },
+        "vimLike.showFullWidthSpaces": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "全角スペース (U+3000) を点線の枠で囲んで表示します。Vim モードを切っていても効きます。"
+        },
         "vimLike.leader": {
           "type": "string",
           "default": " ",

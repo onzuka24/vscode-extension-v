@@ -473,6 +473,7 @@ Normal モードだけに入れています。どれもカーソル位置に対�
 - `vimLike.startInNormalMode`: エディターを切り替えたときに Normal モードへ戻すか（既定値: `true`）
 - `vimLike.showModeInStatusBar`: ステータスバーに現在のモードを表示するか（既定値: `true`）
 - `vimLike.showMarks`: マークを付けた行の行番号の横にマーク名を表示するか（既定値: `true`）
+- `vimLike.showFullWidthSpaces`: 全角スペースを点線の枠で囲んで表示するか（既定値: `true`）
 - `vimLike.leader`: キー割り当ての `<leader>` が指すキー（既定値: スペース）
 - `vimLike.aiPanels`: `<leader>e` `<leader>E` の送り先（既定値: 空）
 - `vimLike.exCommands`: `:` で使える自分の名前（既定値: 空）

@@ -8,4 +8,4 @@
 # 版を上げるときは、ここを書き換えて npm run lint / typecheck / test を通してください。
 
 [tools]
-node = "22.23.2"
+node = "22.23.4"

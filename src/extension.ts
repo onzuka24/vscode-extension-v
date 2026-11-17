@@ -6,6 +6,7 @@ import { HELP_SCHEME, HelpDocument } from './adapter/help';
 import { previewCommandFor } from './adapter/preview';
 import { applyActions, readCursor } from './adapter/apply';
 import { DocumentBuffer } from './adapter/buffer';
+import { FullWidthSpaceDecorations } from './adapter/fullWidthSpaceDecorations';
 import { MarkDecorations } from './adapter/markDecorations';
 import { ModeStatusBar } from './adapter/statusBar';
 import { TerminalBridge } from './adapter/terminal';
@@ -20,6 +21,7 @@ const engine = new VimEngine();
 let state: VimState = createState('normal');
 let statusBar: ModeStatusBar;
 let markDecorations: MarkDecorations;
+let fullWidthSpaces: FullWidthSpaceDecorations;
 let terminal: TerminalBridge;
 let help: HelpDocument;
 let enabled = true;
@@ -84,6 +86,8 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(statusBar);
   markDecorations = new MarkDecorations();
   context.subscriptions.push(markDecorations);
+  fullWidthSpaces = new FullWidthSpaceDecorations();
+  context.subscriptions.push(fullWidthSpaces);
   terminal = new TerminalBridge();
   context.subscriptions.push(terminal);
   help = new HelpDocument(context.extensionUri, repositoryUrlOf(context));
@@ -561,8 +565,13 @@ function registerListeners(context: vscode.ExtensionContext): void {
      * Redrawing is skipped unless this document actually has marks, so the usual
      * case — typing in a file with none — costs one lookup.
      */
+    vscode.window.onDidChangeVisibleTextEditors(() => renderFullWidthSpaces()),
+
     vscode.workspace.onDidChangeTextDocument(event => {
       if (event.contentChanges.length === 0) return;
+      for (const editor of vscode.window.visibleTextEditors) {
+        if (editor.document === event.document) fullWidthSpaces.renderOne(editor, showFullWidthSpaces());
+      }
 
       const editor = vscode.window.activeTextEditor;
       if (!editor || event.document !== editor.document) return;
@@ -577,6 +586,7 @@ function registerListeners(context: vscode.ExtensionContext): void {
       enabled = configuration().get('enabled', true);
       loadRemaps();
       void refresh();
+      renderFullWidthSpaces();
     })
   );
 }
@@ -595,6 +605,14 @@ function repositoryUrlOf(context: vscode.ExtensionContext): string {
 
 function configuration(): vscode.WorkspaceConfiguration {
   return vscode.workspace.getConfiguration('vimLike');
+}
+
+function showFullWidthSpaces(): boolean {
+  return configuration().get('showFullWidthSpaces', true);
+}
+
+function renderFullWidthSpaces(): void {
+  fullWidthSpaces.render(vscode.window.visibleTextEditors, showFullWidthSpaces());
 }
 
 /**
